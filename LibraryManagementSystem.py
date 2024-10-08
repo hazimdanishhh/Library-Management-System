@@ -91,40 +91,40 @@ class DynamicBookLinkedList(BookManagerBase):       #Class inherited from BookMa
         return books        #Return books list.
 
 # ===============================================
-# Stack-based Undo/Redo System (Array-Based)
+# Stack-based Undo/Redo System (Array-Based) Currently only for Adding and Removing books
 # ===============================================
 class UndoRedoStack:
     def __init__(self, limit=10):
-        self.undo_stack = []
-        self.redo_stack = []
-        self.limit = limit
+        self.undo_stack = []        #Initialize empty list that will store actions that can be undone.
+        self.redo_stack = []        #Initialize empty list that will store actions that can be redone.
+        self.limit = limit          #Limit of actions that can be stored in both stacks.
 
     def push_undo(self, action):
         if len(self.undo_stack) >= self.limit:
-            self.undo_stack.pop(0)  # Remove the oldest action if limit is reached
-        self.undo_stack.append(action)
-        self.redo_stack.clear()  # Clear redo stack whenever a new action occurs
+            self.undo_stack.pop(0)      #Remove the oldest action if limit is reached.
+        self.undo_stack.append(action)      #Append newest action to the undo_stack.
+        self.redo_stack.clear()     #Clear redo stack whenever a new action occurs.
 
     def push_redo(self, action):
         if len(self.redo_stack) >= self.limit:
-            self.redo_stack.pop(0)
-        self.redo_stack.append(action)
+            self.redo_stack.pop(0)      #Remove the oldest action if limit is reached.
+        self.redo_stack.append(action)      #Append newest undone action to the redo_stack.
 
-    def undo(self, book_manager):
+    def undo(self, book_manager):       #This method performs the undo operation.
         if not self.undo_stack:
-            print("\nNo actions to undo.")
+            print("\nNo actions to undo.")      #If undo_stack is empty, exit.
             return
-        action = self.undo_stack.pop()
-        if action['type'] == 'add':
-            book_manager.remove_book(isbn=action['isbn'])
-            self.push_redo(action)  # Move this action to redo stack
+        action = self.undo_stack.pop()      #If there is an action to undo, remove the most recent action from the undo_stack and stores in the action variable.
+        if action['type'] == 'add':     #Checks if action is addition of a book.
+            book_manager.remove_book(isbn=action['isbn'])       #Calls remove_book method, removes the book that was added. Uses the isbn stored in the action dictionary.
+            self.push_redo(action)      #Move this action to redo stack.
             print(f"\nUndo: Removed book {action['isbn']}")
-        elif action['type'] == 'remove':
-            book_manager.add_book(action['isbn'], action['title'])
-            self.push_redo(action)
+        elif action['type'] == 'remove':        #Checks if action is removal of a book.
+            book_manager.add_book(action['isbn'], action['title'])      #Calls add_book method, adds the recently removed book.
+            self.push_redo(action)      #Move this action to redo stack.
             print(f"\nUndo: Re-added book {action['isbn']}")
 
-    def redo(self, book_manager):
+    def redo(self, book_manager):       #This method performs the redo operation.
         if not self.redo_stack:
             print("\nNo actions to redo.")
             return
@@ -146,17 +146,17 @@ class CSVManager:
         self.filename = filename
 
     def load_books(self, book_manager):
-        try:
-            with open(self.filename, mode='r') as file:
+        try:        #Attempts to open and read the CSV file
+            with open(self.filename, mode='r') as file:     #Opens CSV file in read mode 'r', and the with statement ensures that the file is closed after reading.
                 reader = csv.DictReader(file)
-                for row in reader:
+                for row in reader:          #Iterates over each row in the CSV file with the corresponding isbn and title.
                     book_manager.add_book(row['isbn'], row['title'])
             print("\nBooks loaded from CSV.")
-        except FileNotFoundError:
+        except FileNotFoundError:       #If CSV file is not found, catch a FileNotFoundError.
             print("\nCSV file not found.")
 
     def save_books(self, book_manager):
-        with open(self.filename, mode='w', newline='') as file:
+        with open(self.filename, mode='w', newline='') as file:     #Opens CSV file in write mode 'w'. The newline='' argument ensures that no extra lines are added between rows.
             writer = csv.DictWriter(file, fieldnames=['isbn', 'title'])
             writer.writeheader()
             writer.writerows(book_manager.get_books())
