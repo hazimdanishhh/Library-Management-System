@@ -5,91 +5,90 @@ import csv
 # ===============================================
 class BookManagerBase:
     def search_book(self, isbn=None, title=None):
-        for book in self.get_books():
-            if isbn and book['isbn'] == isbn:
+        for book in self.get_books():   #Loop through each book and check if its isbn or title matches the given search criteria
+            if isbn and book['isbn'] == isbn:   #If both conditions are true, it means the book with the matching ISBN was found, and returns the book.
                 return book
-            if title and book['title'].lower() == title.lower():
+            if title and book['title'].lower() == title.lower():    #If the title matches, it returns the book.
                 return book
-        return None
+        return None     #If no book is found that matches either the ISBN or title, no matching book was found and returns None.
 
     def display_books(self):
         books = self.get_books()
-        if not books:
+        if not books:       #Checks if the books list is empty or None
             print("\nNo books available.")
         else:
-            for book in books:
+            for book in books:      #Loop through each book in books list and prints each book.
                 print(f"{book['isbn']}        {book['title']}")
 
-    def get_books(self):
-        #Should return list of books. Overridden by subclasses
-        raise NotImplementedError
+    def get_books(self):        #Placeholder method to be overridden by subclasses that inherit from this Base class, and return list of books.
+        raise NotImplementedError       #If a subclass does not override this method, it will give an error. This forces subclasses to define their own specific way of getting a list of books (Static or Dynamic)
 
 # ===============================================
 # Static Data Structure: Array (Max capacity of 100)
 # ===============================================
-class StaticBookArray(BookManagerBase):
-    def __init__(self, capacity=100):
-        self.capacity = capacity
-        self.books = []
+class StaticBookArray(BookManagerBase):     #This class inherits from BookManagerBase and has access to the methods defined in its parent, such as (search_book, display_books).
+    def __init__(self, capacity=100):       #Constructor method, book array with max capacity of 100 books.
+        self.capacity = capacity        #Stores value of capacity in the instance variable.
+        self.books = []                 #Initialize an empty list to store the books.
     
     def add_book(self, isbn, title):
-        if len(self.books) < self.capacity:
+        if len(self.books) < self.capacity:     #If length of array is less than capacity, append the new book to the books array.
             self.books.append({"isbn": isbn, "title": title})
-        else:
+        else:       #Else, the array will not accept any more books as it is full.
             print("\nLibrary is full.")
 
     def remove_book(self, isbn=None, title=None):
-        book = self.search_book(isbn, title)
-        if book:
+        book = self.search_book(isbn, title)        #Calls search_book method inherited from BookManagerBase and stores in book variable.
+        if book:        #If book is found and not None, remove the book from the books array.
             self.books.remove(book)
             return True
         return False
 
-    def get_books(self):
+    def get_books(self):        #Defined function to override base class method from BookManagerBase, and returns the list of books stored in self.books array.
         return self.books
 
 # ===============================================
 # Dynamic Data Structure: Linked List
 # ===============================================
-class Node:
-    def __init__(self, isbn, title):
+class Node:         #Defines class Node that represents a node in a linked list. Each node will store a book's details (isbn, title), and a reference (next) to the next node in the list.
+    def __init__(self, isbn, title):        #Constructor method to initialize a new node with a book's isbn and title.
         self.isbn = isbn
         self.title = title
         self.next = None
 
-class DynamicBookLinkedList(BookManagerBase):
+class DynamicBookLinkedList(BookManagerBase):       #Class inherited from BookManagerBase, and manages the books as a linked list of Node objects.
     def __init__(self):
-        self.head = None
+        self.head = None        #Initialize the linked list by setting its head (first node in the linked list) to None.
 
     def add_book(self, isbn, title):
-        new_node = Node(isbn, title)
-        if not self.head:
-            self.head = new_node
+        new_node = Node(isbn, title)        #Create a new_node object using the provided isbn and title.
+        if not self.head:           #Check if linked list is empty
+            self.head = new_node        #If the linked list is empty, the new node is set as the head of the linked list.
         else:
-            current = self.head
-            while current.next:
-                current = current.next
-            current.next = new_node
+            current = self.head     #If the linked list is not empty, sets the variable current to point to the first node in the linked list (head).
+            while current.next:     #Loop through the linked list until the last node (node with next pointer = None).
+                current = current.next      #Moves variable current to next node in the linked list.
+            current.next = new_node     #After loop finds the last node, sets the next pointer of that last node to the new node; adding a new book to the end of the linked list.
 
     def remove_book(self, isbn=None, title=None):
-        current, prev = self.head, None
-        while current:
-            if (isbn and current.isbn == isbn) or (title and current.title.lower() == title.lower()):
-                if prev:
-                    prev.next = current.next
+        current, prev = self.head, None         #Initialize two variables; current = self.head (point to first node), and prev = None (keep track of previous node in the list, initialized to None)
+        while current:      #Loop through the linked list until current = None (reaches the end of the list).
+            if (isbn and current.isbn == isbn) or (title and current.title.lower() == title.lower()):       #If either condition is True, remove the current node.
+                if prev:        #Checks if current node is not the head node.
+                    prev.next = current.next        #Removes the current node by changing the pointer of the previous node (prev) to point to the next node (current.next).
                 else:
-                    self.head = current.next
+                    self.head = current.next        #Else if current node is the head, removes the current node and setting the head to point to the next node in the list.
                 return True
-            prev, current = current, current.next
+            prev, current = current, current.next       #Traverse forward in the linked list, continue checking the next node and reiterates the above.
         return False
 
     def get_books(self):
-        books = []
-        current = self.head
-        while current:
-            books.append({"isbn": current.isbn, "title": current.title})
-            current = current.next
-        return books
+        books = []          #Initialize empty books list.
+        current = self.head     #Sets current to head of the list.
+        while current:      #Traverse through the list until current = None,
+            books.append({"isbn": current.isbn, "title": current.title})        #Appends the current node's isbn and title to the books list.
+            current = current.next      #Move forward in the list.
+        return books        #Return books list.
 
 # ===============================================
 # Stack-based Undo/Redo System (Array-Based)
