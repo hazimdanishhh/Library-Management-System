@@ -461,7 +461,7 @@ class CSVManager:
             print("\nCSV file not found.")
 
     def save_books(self, book_manager):
-        with open(self.filename, mode='w', newline='') as file:   #Opens CSV file in write mode 'w'. The newline='' argument ensures that no extra lines are added between rows.
+        with open(self.filename, mode='w', newline='') as file:
             writer = csv.DictWriter(file, fieldnames=['isbn', 'title'])
             writer.writeheader()
             writer.writerows(book_manager.get_books())
