@@ -18,7 +18,7 @@ class BookManagerBase:
             print("\nNo books available.")
         else:
             for book in books:      #Loop through each book in books list and prints each book.
-                print(f"{book['isbn']}        {book['title']}")
+                print(f"{book['isbn']}\t|\t{book['title']}")
 
     def get_books(self):        #Placeholder method to be overridden by subclasses that inherit from this Base class, and return list of books.
         raise NotImplementedError       #If a subclass does not override this method, it will give an error. This forces subclasses to define their own specific way of getting a list of books (Static or Dynamic)
@@ -139,6 +139,268 @@ class UndoRedoStack:
             print(f"\nRedo: Removed book {action['isbn']}")
 
 # ===============================================
+# Binary Tree-based Book Search (BST)
+# ===============================================
+class BSTNode:
+    def __init__(self, isbn, title):
+        self.isbn = isbn
+        self.title = title
+        self.left = None
+        self.right = None
+
+class BinarySearchTree(BookManagerBase):
+    def __init__(self):
+        self.root = None
+
+    def add_book(self, isbn, title):
+        self.root = self._add_recursive(self.root, isbn, title)
+
+    def _add_recursive(self, node, isbn, title):
+        if not node:
+            return BSTNode(isbn, title)
+        if isbn < node.isbn:
+            node.left = self._add_recursive(node.left, isbn, title)
+        elif isbn > node.isbn:
+            node.right = self._add_recursive(node.right, isbn, title)
+        else:
+            print("\nBook with this ISBN already exists.")
+        return node
+
+    def remove_book(self, isbn=None, title=None):
+        self.root, removed_book = self._delete_recursive(self.root, isbn, title)
+        return removed_book
+
+    def _delete_recursive(self, node, isbn=None, title=None):
+        if not node:
+            return node, None
+        if isbn and isbn < node.isbn:
+            node.left, removed_book = self._delete_recursive(node.left, isbn)
+        elif isbn and isbn > node.isbn:
+            node.right, removed_book = self._delete_recursive(node.right, isbn)
+        elif isbn == node.isbn or title.lower() == node.title.lower():
+            removed_book = {"isbn": node.isbn, "title": node.title}
+            if not node.left: return node.right, removed_book
+            if not node.right: return node.left, removed_book
+            min_node = self._min_value_node(node.right)
+            node.isbn, node.title = min_node.isbn, min_node.title
+            node.right, _ = self._delete_recursive(node.right, min_node.isbn)
+        elif title and title.lower() < node.title.lower():
+            node.left, removed_book = self._delete_recursive(node.left, isbn, title)
+        else:
+            node.right, removed_book = self._delete_recursive(node.right, isbn, title)
+        return node, removed_book
+
+    def _min_value_node(self, node):
+        while node.left: node = node.left
+        return node
+
+    def search_book(self, isbn=None, title=None):
+        return self._search_recursive(self.root, isbn, title)
+
+    def _search_recursive(self, node, isbn=None, title=None):
+        if not node:
+            return None
+        if isbn == node.isbn or (title and title.lower() == node.title.lower()):
+            return {"isbn": node.isbn, "title": node.title}
+        if isbn and isbn < node.isbn:
+            return self._search_recursive(node.left, isbn, title)
+        if title and title.lower() < node.title.lower():
+            return self._search_recursive(node.left, isbn, title)
+        return self._search_recursive(node.right, isbn, title)
+
+    def get_books(self):
+        books = []
+        self._inorder_traversal(self.root, books)
+        return books
+
+    def _inorder_traversal(self, node, books):
+        if node:
+            self._inorder_traversal(node.left, books)
+            books.append({"isbn": node.isbn, "title": node.title})
+            self._inorder_traversal(node.right, books)
+
+# FIX AVL TREE
+# PROBLEMS WITH REMOVE BY TITLE AND SEARCH BY TITLE FOR NEWLY ADDED BOOKS
+
+# ===============================================
+# AVL Tree
+# =============================================== 
+class AVLNode:
+    def __init__(self, isbn, title):
+        self.isbn = isbn
+        self.title = title
+        self.left = None
+        self.right = None
+        self.height = 1   # Height property for balancing purposes
+
+class AVLTree(BookManagerBase):
+    def __init__(self):
+        self.root = None
+
+    # Utility function to get the height of the node
+    def _get_height(self, node):
+        if not node:
+            return 0
+        return node.height
+
+    # Utility function to get the balance factor of the node
+    def _get_balance(self, node):
+        if not node:
+            return 0
+        return self._get_height(node.left) - self._get_height(node.right)
+
+    # Right rotate utility to maintain AVL property
+    def _right_rotate(self, y):
+        x = y.left
+        T2 = x.right
+        x.right = y
+        y.left = T2
+        y.height = 1 + max(self._get_height(y.left), self._get_height(y.right))
+        x.height = 1 + max(self._get_height(x.left), self._get_height(x.right))
+        return x
+
+    # Left rotate utility to maintain AVL property
+    def _left_rotate(self, x):
+        y = x.right
+        T2 = y.left
+        y.left = x
+        x.right = T2
+        x.height = 1 + max(self._get_height(x.left), self._get_height(x.right))
+        y.height = 1 + max(self._get_height(y.left), self._get_height(y.right))
+        return y
+
+    # Function to add a book and maintain AVL balance
+    def add_book(self, isbn, title):
+        self.root = self._add_recursive(self.root, isbn, title)
+
+    def _add_recursive(self, node, isbn, title):
+        if not node:
+            return AVLNode(isbn, title)
+        if isbn < node.isbn:
+            node.left = self._add_recursive(node.left, isbn, title)
+        elif isbn > node.isbn:
+            node.right = self._add_recursive(node.right, isbn, title)
+        else:
+            print("\nBook with this ISBN already exists.")
+            return node
+
+        node.height = 1 + max(self._get_height(node.left), self._get_height(node.right))
+
+        # Balance the node if necessary
+        balance = self._get_balance(node)
+
+        # Left heavy situation - Right rotation
+        if balance > 1 and isbn < node.left.isbn:
+            return self._right_rotate(node)
+
+        # Right heavy situation - Left rotation
+        if balance < -1 and isbn > node.right.isbn:
+            return self._left_rotate(node)
+
+        # Left-Right case - Left rotation followed by Right rotation
+        if balance > 1 and isbn > node.left.isbn:
+            node.left = self._left_rotate(node.left)
+            return self._right_rotate(node)
+
+        # Right-Left case - Right rotation followed by Left rotation
+        if balance < -1 and isbn < node.right.isbn:
+            node.right = self._right_rotate(node.right)
+            return self._left_rotate(node)
+
+        return node
+
+    # Function to remove a book and maintain AVL balance
+    def remove_book(self, isbn=None, title=None):
+        self.root, removed_book = self._delete_recursive(self.root, isbn, title)
+        return removed_book
+
+    def _delete_recursive(self, node, isbn=None, title=None):
+        if not node:
+            return node, None
+
+        # Traverse the tree based on ISBN or title
+        if isbn and isbn < node.isbn:
+            node.left, removed_book = self._delete_recursive(node.left, isbn, title)
+        elif isbn and isbn > node.isbn:
+            node.right, removed_book = self._delete_recursive(node.right, isbn, title)
+        elif (isbn and isbn == node.isbn) or (title and title.lower() == node.title.lower()):
+            removed_book = {"isbn": node.isbn, "title": node.title}
+            # Node has at most one child
+            if not node.left:
+                return node.right, removed_book
+            if not node.right:
+                return node.left, removed_book
+            # Node has two children, find the in-order successor (minimum in the right subtree)
+            min_node = self._min_value_node(node.right)
+            node.isbn, node.title = min_node.isbn, min_node.title
+            node.right, _ = self._delete_recursive(node.right, min_node.isbn)
+
+        elif title and title.lower() < node.title.lower():
+            node.left, removed_book = self._delete_recursive(node.left, isbn, title)
+        else:
+            node.right, removed_book = self._delete_recursive(node.right, isbn, title)
+
+        # Balance the AVL tree after deletion
+        if not node:
+            return node, removed_book
+
+        node.height = 1 + max(self._get_height(node.left), self._get_height(node.right))
+        balance = self._get_balance(node)
+
+        # Left heavy - Right rotation
+        if balance > 1 and self._get_balance(node.left) >= 0:
+            return self._right_rotate(node), removed_book
+        # Left-Right case - Left rotation followed by Right rotation
+        if balance > 1 and self._get_balance(node.left) < 0:
+            node.left = self._left_rotate(node.left)
+            return self._right_rotate(node), removed_book
+        # Right heavy - Left rotation
+        if balance < -1 and self._get_balance(node.right) <= 0:
+            return self._left_rotate(node), removed_book
+        # Right-Left case - Right rotation followed by Left rotation
+        if balance < -1 and self._get_balance(node.right) > 0:
+            node.right = self._right_rotate(node.right)
+            return self._left_rotate(node), removed_book
+
+        return node, removed_book
+
+    # Helper function to find the node with the smallest value in the right subtree
+    def _min_value_node(self, node):
+        while node.left:
+            node = node.left
+        return node
+
+    # Function to search for a book in the AVL Tree
+    def search_book(self, isbn=None, title=None):
+        return self._search_recursive(self.root, isbn, title)
+
+    def _search_recursive(self, node, isbn=None, title=None):
+        if not node:
+            return None
+        # Match ISBN or Title (case-insensitive for title)
+        if (isbn and isbn == node.isbn) or (title and title.lower() == node.title.lower()):
+            return {"isbn": node.isbn, "title": node.title}
+        
+        # Continue traversing the tree based on ISBN or title
+        if isbn and isbn < node.isbn:
+            return self._search_recursive(node.left, isbn, title)
+        if title and title.lower() < node.title.lower():
+            return self._search_recursive(node.left, isbn, title)
+        return self._search_recursive(node.right, isbn, title)
+
+    # Inorder traversal to get a sorted list of books
+    def get_books(self):
+        books = []
+        self._inorder_traversal(self.root, books)
+        return books
+
+    def _inorder_traversal(self, node, books):
+        if node:
+            self._inorder_traversal(node.left, books)
+            books.append({"isbn": node.isbn, "title": node.title})
+            self._inorder_traversal(node.right, books)
+
+# ===============================================
 # CSV Manager (For Reading and Writing into CSV File)
 # ===============================================
 class CSVManager:
@@ -156,14 +418,14 @@ class CSVManager:
             print("\nCSV file not found.")
 
     def save_books(self, book_manager):
-        with open(self.filename, mode='w', newline='') as file:     #Opens CSV file in write mode 'w'. The newline='' argument ensures that no extra lines are added between rows.
+        with open(self.filename, mode='w', newline='') as file:
             writer = csv.DictWriter(file, fieldnames=['isbn', 'title'])
             writer.writeheader()
             writer.writerows(book_manager.get_books())
         print("\nBooks saved to CSV.")
 
 # ===============================================
-# User Interface Main Menu (with Undo/Redo options)
+# User Interface Main Menu
 # ===============================================
 if __name__ == "__main__":
     print("\n+-------------------------------------------+")
@@ -172,18 +434,26 @@ if __name__ == "__main__":
     print("| Please choose a data structure:           |")
     print("| 1. Static Array                           |")
     print("| 2. Dynamic Linked List                    |")
+    print("| 3. Binary Search Tree (BST)               |")
+    print("| 4. AVL Tree                               |")
     print("+-------------------------------------------+")
 
     while True:
-        choice = input("> Enter 1 or 2: ").strip()
+        choice = input("> Enter 1, 2, 3 or 4: ").strip()
         if choice == "1":
             book_manager = StaticBookArray()
             break
-        elif choice == "2":
+        if choice == "2":
             book_manager = DynamicBookLinkedList()
             break
+        if choice == "3":
+            book_manager = BinarySearchTree()
+            break
+        elif choice == "4":
+            book_manager = AVLTree()
+            break
         else:
-            print("\nInvalid choice. Please enter 1 or 2.")
+            print("\nInvalid choice. Please enter 1, 2, 3 or 4.")
 
     csv_manager = CSVManager()
     undo_redo = UndoRedoStack()
@@ -215,7 +485,7 @@ if __name__ == "__main__":
         if option == "1":
             print("\nBooks in the Library:")
             print("-------------------------------------------------------------------")
-            print("ISBN       |     Title")
+            print("ISBN            |       Title")
             print("-------------------------------------------------------------------")
             book_manager.display_books()
             print("-------------------------------------------------------------------")
