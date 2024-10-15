@@ -1,5 +1,5 @@
 import csv
-
+from datetime import datetime
 # ===============================================
 # Base class for Book Management (abstracts common logic for both Static and Dynamic Data Structures)
 # ===============================================
@@ -22,6 +22,22 @@ class BookManagerBase:
 
     def get_books(self):        #Placeholder method to be overridden by subclasses that inherit from this Base class, and return list of books.
         raise NotImplementedError       #If a subclass does not override this method, it will give an error. This forces subclasses to define their own specific way of getting a list of books (Static or Dynamic)
+    
+    def get_borrowed_books(self):
+        books = self.get_books()
+        return [book for book in books if book['user'] != '' and book['date'] != '']    #Perform list comprehension based on list of books stored to get list of books borrowed by a user
+
+    def get_user_borrowed_books(self, user=None):
+        borrowed_books = self.get_borrowed_books()
+        return [book for book in borrowed_books if book['user'] == user]
+
+    def display_user_borrowed_books(self, user=None):
+        user_borrowed_books = self.get_user_borrowed_books(user)
+        if not user_borrowed_books:       #Checks if the user_borrowed_books list is empty or None
+            print("\nNo books available.")
+        else:
+            for book in user_borrowed_books:      #Loop through each book in list and prints each book.
+                print(f"{book['isbn']}\t|\t{book['title']}\t|\t{book['date']}")        
 
 # ===============================================
 # Static Data Structure: Array (Max capacity of 100)
@@ -31,9 +47,9 @@ class StaticBookArray(BookManagerBase):     #This class inherits from BookManage
         self.capacity = capacity        #Stores value of capacity in the instance variable.
         self.books = []                 #Initialize an empty list to store the books.
     
-    def add_book(self, isbn, title):
+    def add_book(self, isbn, title, user, date):
         if len(self.books) < self.capacity:     #If length of array is less than capacity, append the new book to the books array.
-            self.books.append({"isbn": isbn, "title": title})
+            self.books.append({"isbn": isbn, "title": title, "user": user, "date": date})
         else:       #Else, the array will not accept any more books as it is full.
             print("\nLibrary is full.")
 
@@ -47,6 +63,30 @@ class StaticBookArray(BookManagerBase):     #This class inherits from BookManage
     def get_books(self):        #Defined function to override base class method from BookManagerBase, and returns the list of books stored in self.books array.
         return self.books
 
+    def borrow_book(self, isbn=None, title=None, user=None, date=None):
+        books = self.get_books()
+        book = self.search_book(isbn, title)        
+        if book:        #If book is found and not None, add user & date to book
+            borrowed_book = book
+            borrowed_book['user'] = user
+            borrowed_book['date'] = date
+            index = books.index(book)
+            self.books[index] = borrowed_book
+            return True
+        return False
+
+    def return_book(self, isbn=None):
+        books = self.get_books()
+        borrowed_book = self.search_book(isbn, None)        
+        if book:        #If book is found and not None, remove user & date from book
+            returned_book = borrowed_book
+            returned_book['user'] = ''
+            returned_book['date'] = ''
+            index = books.index(borrowed_book)
+            self.books[index] = returned_book
+            return True
+        return False
+
 # ===============================================
 # Dynamic Data Structure: Linked List
 # ===============================================
@@ -54,14 +94,16 @@ class Node:         #Defines class Node that represents a node in a linked list.
     def __init__(self, isbn, title):        #Constructor method to initialize a new node with a book's isbn and title.
         self.isbn = isbn
         self.title = title
+        self.user = user
+        self.date = date
         self.next = None
 
 class DynamicBookLinkedList(BookManagerBase):       #Class inherited from BookManagerBase, and manages the books as a linked list of Node objects.
     def __init__(self):
         self.head = None        #Initialize the linked list by setting its head (first node in the linked list) to None.
 
-    def add_book(self, isbn, title):
-        new_node = Node(isbn, title)        #Create a new_node object using the provided isbn and title.
+    def add_book(self, isbn, title, user, date):
+        new_node = Node(isbn, title, user, date)        #Create a new_node object using the provided book details.
         if not self.head:           #Check if linked list is empty
             self.head = new_node        #If the linked list is empty, the new node is set as the head of the linked list.
         else:
@@ -86,7 +128,7 @@ class DynamicBookLinkedList(BookManagerBase):       #Class inherited from BookMa
         books = []          #Initialize empty books list.
         current = self.head     #Sets current to head of the list.
         while current:      #Traverse through the list until current = None,
-            books.append({"isbn": current.isbn, "title": current.title})        #Appends the current node's isbn and title to the books list.
+            books.append({"isbn": current.isbn, "title": current.title, "user": current.user, "date": current.date})    #Appends the current node's details to the books list.
             current = current.next      #Move forward in the list.
         return books        #Return books list.
 
@@ -142,9 +184,11 @@ class UndoRedoStack:
 # Binary Tree-based Book Search (BST)
 # ===============================================
 class BSTNode:
-    def __init__(self, isbn, title):
+    def __init__(self, isbn, title, user, date): 
         self.isbn = isbn
         self.title = title
+        self.user = user
+        self.date = date
         self.left = None
         self.right = None
 
@@ -152,16 +196,16 @@ class BinarySearchTree(BookManagerBase):
     def __init__(self):
         self.root = None
 
-    def add_book(self, isbn, title):
-        self.root = self._add_recursive(self.root, isbn, title)
+    def add_book(self, isbn, title, user, date):
+        self.root = self._add_recursive(self.root, isbn, title, user, date)
 
-    def _add_recursive(self, node, isbn, title):
+    def _add_recursive(self, node, isbn, title, user, date):
         if not node:
-            return BSTNode(isbn, title)
+            return BSTNode(isbn, title, user, date)
         if isbn < node.isbn:
-            node.left = self._add_recursive(node.left, isbn, title)
+            node.left = self._add_recursive(node.left, isbn, title, user, date)
         elif isbn > node.isbn:
-            node.right = self._add_recursive(node.right, isbn, title)
+            node.right = self._add_recursive(node.right, isbn, title, user, date)
         else:
             print("\nBook with this ISBN already exists.")
         return node
@@ -178,7 +222,7 @@ class BinarySearchTree(BookManagerBase):
         elif isbn and isbn > node.isbn:
             node.right, removed_book = self._delete_recursive(node.right, isbn)
         elif isbn == node.isbn or title.lower() == node.title.lower():
-            removed_book = {"isbn": node.isbn, "title": node.title}
+            removed_book = {"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date}
             if not node.left: return node.right, removed_book
             if not node.right: return node.left, removed_book
             min_node = self._min_value_node(node.right)
@@ -201,7 +245,7 @@ class BinarySearchTree(BookManagerBase):
         if not node:
             return None
         if isbn == node.isbn or (title and title.lower() == node.title.lower()):
-            return {"isbn": node.isbn, "title": node.title}
+            return {"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date}
         if isbn and isbn < node.isbn:
             return self._search_recursive(node.left, isbn, title)
         if title and title.lower() < node.title.lower():
@@ -216,7 +260,7 @@ class BinarySearchTree(BookManagerBase):
     def _inorder_traversal(self, node, books):
         if node:
             self._inorder_traversal(node.left, books)
-            books.append({"isbn": node.isbn, "title": node.title})
+            books.append({"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date})
             self._inorder_traversal(node.right, books)
 
 # FIX AVL TREE
@@ -226,9 +270,11 @@ class BinarySearchTree(BookManagerBase):
 # AVL Tree
 # =============================================== 
 class AVLNode:
-    def __init__(self, isbn, title):
+    def __init__(self, isbn, title, user, date): 
         self.isbn = isbn
         self.title = title
+        self.user = user
+        self.date = date
         self.left = None
         self.right = None
         self.height = 1   # Height property for balancing purposes
@@ -270,16 +316,16 @@ class AVLTree(BookManagerBase):
         return y
 
     # Function to add a book and maintain AVL balance
-    def add_book(self, isbn, title):
-        self.root = self._add_recursive(self.root, isbn, title)
+    def add_book(self, isbn, title, user, date):
+        self.root = self._add_recursive(self.root, isbn, title, user, date)
 
-    def _add_recursive(self, node, isbn, title):
+    def _add_recursive(self, node, isbn, title, user, date):
         if not node:
-            return AVLNode(isbn, title)
+            return AVLNode(isbn, title, user, date)
         if isbn < node.isbn:
-            node.left = self._add_recursive(node.left, isbn, title)
+            node.left = self._add_recursive(node.left, isbn, title, user, date)
         elif isbn > node.isbn:
-            node.right = self._add_recursive(node.right, isbn, title)
+            node.right = self._add_recursive(node.right, isbn, title, user, date)
         else:
             print("\nBook with this ISBN already exists.")
             return node
@@ -324,7 +370,7 @@ class AVLTree(BookManagerBase):
         elif isbn and isbn > node.isbn:
             node.right, removed_book = self._delete_recursive(node.right, isbn, title)
         elif (isbn and isbn == node.isbn) or (title and title.lower() == node.title.lower()):
-            removed_book = {"isbn": node.isbn, "title": node.title}
+            removed_book = {"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date}
             # Node has at most one child
             if not node.left:
                 return node.right, removed_book
@@ -379,7 +425,7 @@ class AVLTree(BookManagerBase):
             return None
         # Match ISBN or Title (case-insensitive for title)
         if (isbn and isbn == node.isbn) or (title and title.lower() == node.title.lower()):
-            return {"isbn": node.isbn, "title": node.title}
+            return {"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date}
         
         # Continue traversing the tree based on ISBN or title
         if isbn and isbn < node.isbn:
@@ -397,7 +443,7 @@ class AVLTree(BookManagerBase):
     def _inorder_traversal(self, node, books):
         if node:
             self._inorder_traversal(node.left, books)
-            books.append({"isbn": node.isbn, "title": node.title})
+            books.append({"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date})
             self._inorder_traversal(node.right, books)
 
 # ===============================================
@@ -412,14 +458,14 @@ class CSVManager:
             with open(self.filename, mode='r') as file:     #Opens CSV file in read mode 'r', and the with statement ensures that the file is closed after reading.
                 reader = csv.DictReader(file)
                 for row in reader:          #Iterates over each row in the CSV file with the corresponding isbn and title.
-                    book_manager.add_book(row['isbn'], row['title'])
+                    book_manager.add_book(row['isbn'], row['title'], row['user'], row['date'])
             print("\nBooks loaded from CSV.")
         except FileNotFoundError:       #If CSV file is not found, catch a FileNotFoundError.
             print("\nCSV file not found.")
 
     def save_books(self, book_manager):
         with open(self.filename, mode='w', newline='') as file:
-            writer = csv.DictWriter(file, fieldnames=['isbn', 'title'])
+            writer = csv.DictWriter(file, fieldnames=['isbn', 'title', 'user', 'date'])
             writer.writeheader()
             writer.writerows(book_manager.get_books())
         print("\nBooks saved to CSV.")
@@ -455,9 +501,17 @@ if __name__ == "__main__":
         else:
             print("\nInvalid choice. Please enter 1, 2, 3 or 4.")
 
+    while True:
+        user = input("> Enter your username: ").strip()
+        if user.isalpha():  #Input validation to only accept letters in user
+            break
+        else:
+            print("\nUsername cannot be used. Please enter a different username.")
+
     csv_manager = CSVManager()
     undo_redo = UndoRedoStack()
     csv_manager.load_books(book_manager)
+    days_due = 14   #Define no of days before overdue
 
     def prompt_user(message, options):
         while True:
@@ -473,11 +527,13 @@ if __name__ == "__main__":
         print("| 1. Display All Books          |")
         print("| 2. Add Book                   |")
         print("| 3. Search Book                |")
-        print("| 4. Remove Book                |")
-        print("| 5. Save Changes to CSV        |")
-        print("| 6. Undo                       |")
-        print("| 7. Redo                       |")
-        print("| 8. Exit                       |")
+        print("| 4. Borrow Book                |")        
+        print("| 5. Return Book                |")   
+        print("| 6. Remove Book                |")
+        print("| 7. Save Changes to CSV        |")
+        print("| 8. Undo                       |")
+        print("| 9. Redo                       |")
+        print("| X. Exit                       |")
         print("+-------------------------------+")
         
         option = input("> Choose option: ").strip()
@@ -504,6 +560,64 @@ if __name__ == "__main__":
             print(f"\nBook found: {book}" if book else "\nBook not found.")
 
         elif option == "4":
+            search_type = prompt_user("Borrow a book. Search by ISBN or Title? (isbn/title): ", ["isbn", "title"])
+            value = input(f"Enter {search_type.title()}: ").strip()
+            book = book_manager.search_book(isbn=value if search_type == "isbn" else None, title=value if search_type == "title" else None)
+            borrowed_books = book_manager.get_borrowed_books()
+            if book:
+                if book not in borrowed_books:
+                    while True:
+                        choice = input(f"\nConfirm to borrow {book}? Y/N:").strip().lower()
+                        if choice == "y":
+                            today = datetime.today()
+                            today_str = today.strftime('%Y-%m-%d')
+                            try:
+                                borrow_book = book_manager.borrow_book(isbn=value if search_type == "isbn" else None, title=value if search_type == "title" else None,user=user,date=today_str)
+                                print(f"\nYou have borrowed {book}. Please make sure to return it in {days_due} days.")
+                            except:
+                                print("Error borrowing book")   #TODO: Implement borrow_book in other data struct
+                            finally:
+                                break
+                        if choice == "n":
+                            print("\nBorrow cancelled.")
+                            break
+                        else:
+                            print("Invalid choice. Please enter Y/N.")
+                else:
+                    while True:
+                        choice = input(f"\n{book} is borrowed by another user. Would you like to reserve? Y/N:").strip().lower()
+                        if choice == "y":
+                            #TODO: Reserve function
+                            print(f"\nYou have reserved {book}.") 
+                            break
+                        if choice == "n":
+                            print("\nReserve cancelled.")
+                            break
+                        else:
+                            print("Invalid choice. Please enter Y/N.")
+            else: 
+                print("\nBook not found.")
+
+        elif option == "5":
+            print("-------------------------------------------------------------------")
+            print("ISBN            |       Title\t\t|\tDate Borrowed")
+            print("-------------------------------------------------------------------")
+            book_manager.display_user_borrowed_books(user)
+            print("-------------------------------------------------------------------")
+            user_borrowed_books = book_manager.get_user_borrowed_books(user)
+            if user_borrowed_books:            
+                value = input(f"Enter ISBN of the book to return: ").strip()
+                book = book_manager.search_book(isbn=value, title=None)
+                if book and book in user_borrowed_books:
+                    try:
+                        return_book = book_manager.return_book(value)
+                        print(f"\nYou have returned {book}.") 
+                    except:
+                        print(f"\nError returning book")    #TODO: Implement return_book in other data struct
+                else:
+                    print(f"\nNo book was returned.") 
+
+        elif option == "6":
             remove_type = prompt_user("Remove by ISBN or Title? (isbn/title): ", ["isbn", "title"])
             value = input(f"Enter {remove_type.title()}: ").strip()
             book = book_manager.search_book(isbn=value if remove_type == "isbn" else None, title=value if remove_type == "title" else None)
@@ -513,18 +627,22 @@ if __name__ == "__main__":
             else:
                 print("\nBook not found.")
 
-        elif option == "5":
+        elif option == "7":
             csv_manager.save_books(book_manager)
 
-        elif option == "6":
+        elif option == "8":
             undo_redo.undo(book_manager)
 
-        elif option == "7":
+        elif option == "9":
             undo_redo.redo(book_manager)
 
-        elif option == "8":
+        #elif option == "d":
+        #    print(undo_redo.redo_stack)
+        #    print(undo_redo.undo_stack)
+
+        elif option.lower() == "x":
             print("Exiting...")
             break
 
         else:
-            print("\nInvalid option. Please choose a number from 1 to 8.")
+            print("\nInvalid option. Please choose a number from 1 to X.")
