@@ -1,31 +1,34 @@
 import csv
+import heapq as hq
 from datetime import datetime
 # ===============================================
 # Base class for Book Management (abstracts common logic for both Static and Dynamic Data Structures)
 # ===============================================
 class BookManagerBase:
     def search_book(self, isbn=None, title=None):
-        for book in self.get_books():   #Loop through each book and check if its isbn or title matches the given search criteria
-            if isbn and book['isbn'] == isbn:   #If both conditions are true, it means the book with the matching ISBN was found, and returns the book.
+        # Loop through each book and check if its ISBN or title matches the given search criteria
+        for book in self.get_books():
+            if isbn and book.get('isbn', None) == isbn:  # Safely access 'isbn' with .get()
                 return book
-            if title and book['title'].lower() == title.lower():    #If the title matches, it returns the book.
+            if title and book.get('title', '').lower() == title.lower():  # Safely access 'title'
                 return book
-        return None     #If no book is found that matches either the ISBN or title, no matching book was found and returns None.
+        return None  # If no matching book is found, return None
 
     def display_books(self):
         books = self.get_books()
-        if not books:       #Checks if the books list is empty or None
+        if not books:  # Checks if the books list is empty
             print("\nNo books available.")
         else:
-            for book in books:      #Loop through each book in books list and prints each book.
-                print(f"{book['isbn']}\t|\t{book['title']}")
+            for book in books:  # Loop through each book and print its details
+                print(f"{book.get('isbn', 'N/A')}\t|\t{book.get('title', 'N/A')}")  # Safely handle missing 'isbn' or 'title'
 
-    def get_books(self):        #Placeholder method to be overridden by subclasses that inherit from this Base class, and return list of books.
-        raise NotImplementedError       #If a subclass does not override this method, it will give an error. This forces subclasses to define their own specific way of getting a list of books (Static or Dynamic)
-    
+    def get_books(self):        # Placeholder method to be overridden by subclasses
+        raise NotImplementedError   # Force subclasses to implement their own method for getting books
+
     def get_borrowed_books(self):
         books = self.get_books()
-        return [book for book in books if book['user'] != '' and book['date'] != '']    #Perform list comprehension based on list of books stored to get list of books borrowed by a user
+        # Safely access 'user' and 'date' to avoid KeyError
+        return [book for book in books if book.get('user', '') != '' and book.get('date', '') != '']
 
     def get_user_borrowed_books(self, user=None):
         borrowed_books = self.get_borrowed_books()
@@ -33,21 +36,97 @@ class BookManagerBase:
 
     def display_user_borrowed_books(self, user=None):
         user_borrowed_books = self.get_user_borrowed_books(user)
-        if not user_borrowed_books:       #Checks if the user_borrowed_books list is empty or None
+        if not user_borrowed_books:  # Check if the user has borrowed any books
             print("\nNo books available.")
         else:
-            for book in user_borrowed_books:      #Loop through each book in list and prints each book.
-                print(f"{book['isbn']}\t|\t{book['title']}\t|\t{book['date']}")        
+            print("-------------------------------------------------------------------")
+            print("ISBN            |       Title\t\t|\tDate Borrowed")
+            print("-------------------------------------------------------------------")
+            for book in user_borrowed_books:
+                # Safely handle missing 'isbn', 'title', or 'date' to avoid KeyError
+                print(f"{book.get('isbn', 'N/A')}\t|\t{book.get('title', 'N/A')}\t|\t{book.get('date', 'N/A')}")
+            print("-------------------------------------------------------------------")  # Close the display with a separator
+
+    def get_max_heap_overdue_books(self, days_due=None):
+        borrowed_books = self.get_borrowed_books()
+        overdue_list = []
+        for book in borrowed_books:
+        #Convert the date (stored as string) to datetime format for use in deltatime operations
+        #Get Delta to today and compare to days due for a book. Days overdue = Delta - Days due
+            if (days_delta := (datetime.today()-datetime.strptime(book['date'],'%Y-%m-%d')).days)>days_due:
+                #Nest book in overdue dict in a tuple with days overdue
+                overdue_list.append({tuple(book.items()): days_delta-days_due})   
+        overdue_tuples_list = []    #temporary list to hold tuple pair of book-days
+        # Convert each entry from dict (mutable type) to tuple (immutable type) to allow max-heap sort
+        overdue_tuples_list = [(book, days_overdue) for index in overdue_list for book, days_overdue in index.items()]
+        # Generate a list. Each entry contains days overdue in negative to allow using heapq as max-heap, and the nested entry from source list
+        heap_transform_list = [(item[1]*-1, item) for item in overdue_tuples_list]
+        hq.heapify(heap_transform_list)     # Use heapify to transform the list into a max-heap structure.
+        return heap_transform_list
+
+    def display_max_heap_overdue_books(self, days_due=None):
+        heap_transform_list = self.get_max_heap_overdue_books(days_due)
+        if not heap_transform_list:
+            print("\nNo overdue books.")            
+        else:    
+            print("-----------------------------------------------------------------------------------------------------------")
+            print("ISBN            |  Borrowed by\t|\tDate Borrowed\t| Days overdue\t|       Title")
+            print("-----------------------------------------------------------------------------------------------------------")        
+            while len(heap_transform_list) > 0:
+                # Pop the entry with the largest days_overdue and rearrange the max-heap structure.
+                entry = hq.heappop(heap_transform_list)[1]
+                if entry:
+                    isbn = entry[0][0][1]
+                    title = entry[0][1][1]
+                    user = entry[0][2][1]
+                    date = entry[0][3][1]
+                    days_overdue = entry[1]
+                    print(f"{isbn}\t|\t{user}\t|\t{date}\t|\t{days_overdue}\t|\t{title}")
+            print("-----------------------------------------------------------------------------------------------------------")
+            print("-----------------------------------------------------------------------------------------------------------\n")
+    
+    def borrow_book(self, isbn=None, title=None, user=None, date=None):
+        book = self.search_book(isbn, title)
+        if book:
+            title = book['title']
+            if title in self.borrow_queue and self.borrow_queue[title]:
+                self.borrow_queue[title].append({"user": user, "date": date})
+                print(f"Book '{title}' is currently borrowed. {user}, you have been added to the waiting queue.")
+            else:
+                self.borrow_queue[title] = [{"user": user, "date": date}]
+                if self.borrow_book_sub(book, user, date):   #Check if method exists
+                    print(f"Book '{title}' borrowed by {user} on {date}.")                    
+                else:
+                    print(f"Error borrowing the book (The borrow function is not implemented for this data structure.)")
+        else:
+            print(f"Book '{title}' not found.")
+
+    def borrow_book_sub(self, book=None, user=None, date=None):
+        return False    #Method does not exist outside the subclasses
+
+    def display_borrow_queue(self):
+        if not self.borrow_queue:
+            print("No books are currently borrowed.")
+        else:
+            print("Borrow Queue:")
+            for title, users in self.borrow_queue.items():
+                print(f"Book Title: {title}")
+                for i, user_info in enumerate(users):
+                    status = "Borrowed" if i == 0 else "Waiting"
+                    print(f"  User: {user_info['user']}, Borrow Date: {user_info['date']}, Status: {status}")
 
 # ===============================================
 # Static Data Structure: Array (Max capacity of 100)
 # ===============================================
-class StaticBookArray(BookManagerBase):     #This class inherits from BookManagerBase and has access to the methods defined in its parent, such as (search_book, display_books).
-    def __init__(self, capacity=100):       #Constructor method, book array with max capacity of 100 books.
-        self.capacity = capacity        #Stores value of capacity in the instance variable.
-        self.books = []                 #Initialize an empty list to store the books.
-    
-    def add_book(self, isbn, title, user, date):
+
+#This class inherits from BookManagerBase and has access to the methods defined in its parent (search_book, display_books etc.)
+class StaticBookArray(BookManagerBase):     
+    def __init__(self, capacity=100):       #Constructor method, book array with max capacity of 100 books.       
+        self.capacity = capacity        #Stores value of capacity in the instance variable.        
+        self.books = []                 #Stores the books
+        self.borrow_queue = {}          #Manages the borrow queue
+
+    def add_book(self, isbn, title, user='', date=''):
         if len(self.books) < self.capacity:     #If length of array is less than capacity, append the new book to the books array.
             self.books.append({"isbn": isbn, "title": title, "user": user, "date": date})
         else:       #Else, the array will not accept any more books as it is full.
@@ -59,86 +138,109 @@ class StaticBookArray(BookManagerBase):     #This class inherits from BookManage
             self.books.remove(book)
             return True
         return False
+    
+    def get_books(self):    #Defined function to override base class method from BookManagerBase.        
+        return self.books   #Returns the list of books stored in self.books array.
 
-    def get_books(self):        #Defined function to override base class method from BookManagerBase, and returns the list of books stored in self.books array.
-        return self.books
+    def borrow_book_sub(self, book=None, user=None, date=None):
+        borrowed_book = book
+        borrowed_book['user'] = user            # Assign borrow details
+        borrowed_book['date'] = date
+        index = self.books.index(book)
+        self.books[index] = borrowed_book       # Update the book details in the list
+        return True
 
-    def borrow_book(self, isbn=None, title=None, user=None, date=None):
-        books = self.get_books()
-        book = self.search_book(isbn, title)        
-        if book:        #If book is found and not None, add user & date to book
-            borrowed_book = book
-            borrowed_book['user'] = user
-            borrowed_book['date'] = date
-            index = books.index(book)
-            self.books[index] = borrowed_book
-            return True
-        return False
-
-    def return_book(self, isbn=None):
-        books = self.get_books()
-        borrowed_book = self.search_book(isbn, None)        
-        if book:        #If book is found and not None, remove user & date from book
-            returned_book = borrowed_book
-            returned_book['user'] = ''
-            returned_book['date'] = ''
-            index = books.index(borrowed_book)
-            self.books[index] = returned_book
+    def return_book(self, isbn=None, user=None):
+        borrowed_book = self.search_book(isbn, None)                # Find the book using its ISBN
+        if borrowed_book and borrowed_book.get('user') == user:     # Ensure the book is actually borrowed by the user
+            borrowed_book['user'] = ''          # Clear the user field
+            borrowed_book['date'] = ''          # Clear the date field
+            books = self.get_books()            
+            index = books.index(borrowed_book)      # Find the index of the borrowed book
+            self.books[index] = borrowed_book       # Update the book in the self.books list
             return True
         return False
 
 # ===============================================
 # Dynamic Data Structure: Linked List
 # ===============================================
-class Node:         #Defines class Node that represents a node in a linked list. Each node will store a book's details (isbn, title), and a reference (next) to the next node in the list.
-    def __init__(self, isbn, title):        #Constructor method to initialize a new node with a book's isbn and title.
+class Node:                 # Defines a node in a linked list to store book details.
+    def __init__(self, isbn, title, user='', date=''):
         self.isbn = isbn
         self.title = title
         self.user = user
         self.date = date
         self.next = None
 
-class DynamicBookLinkedList(BookManagerBase):       #Class inherited from BookManagerBase, and manages the books as a linked list of Node objects.
+class DynamicBookLinkedList(BookManagerBase):   # Manages the books as a linked list of Node objects.
     def __init__(self):
-        self.head = None        #Initialize the linked list by setting its head (first node in the linked list) to None.
+        self.head = None        # Initialize the linked list, with head as None.
+        self.borrow_queue = {}
 
-    def add_book(self, isbn, title, user, date):
-        new_node = Node(isbn, title, user, date)        #Create a new_node object using the provided book details.
-        if not self.head:           #Check if linked list is empty
-            self.head = new_node        #If the linked list is empty, the new node is set as the head of the linked list.
+    def add_book(self, isbn, title, user='', date=''):
+        new_node = Node(isbn, title, user, date)    # Create a new Node object for the book.
+        if not self.head:
+            self.head = new_node    # If the list is empty, set the new node as head.
         else:
-            current = self.head     #If the linked list is not empty, sets the variable current to point to the first node in the linked list (head).
-            while current.next:     #Loop through the linked list until the last node (node with next pointer = None).
-                current = current.next      #Moves variable current to next node in the linked list.
-            current.next = new_node     #After loop finds the last node, sets the next pointer of that last node to the new node; adding a new book to the end of the linked list.
+            current = self.head             # Set current to point to the head
+            while current.next:             # Traverse to the end of the list.
+                current = current.next
+            current.next = new_node         # Add the new node at the end of the list.
 
     def remove_book(self, isbn=None, title=None):
-        current, prev = self.head, None         #Initialize two variables; current = self.head (point to first node), and prev = None (keep track of previous node in the list, initialized to None)
-        while current:      #Loop through the linked list until current = None (reaches the end of the list).
-            if (isbn and current.isbn == isbn) or (title and current.title.lower() == title.lower()):       #If either condition is True, remove the current node.
+        current, prev = self.head, None     #current: point to first node, prev: keep track of previous node in the list
+        while current:      # Traverse the list.
+            if (isbn and current.isbn == isbn) or (title and current.title.lower() == title.lower()):
                 if prev:        #Checks if current node is not the head node.
-                    prev.next = current.next        #Removes the current node by changing the pointer of the previous node (prev) to point to the next node (current.next).
+                    prev.next = current.next    # Remove the current node.
                 else:
-                    self.head = current.next        #Else if current node is the head, removes the current node and setting the head to point to the next node in the list.
+                    self.head = current.next    # Remove the head node.
                 return True
-            prev, current = current, current.next       #Traverse forward in the linked list, continue checking the next node and reiterates the above.
+            prev, current = current, current.next       
         return False
 
     def get_books(self):
-        books = []          #Initialize empty books list.
-        current = self.head     #Sets current to head of the list.
-        while current:      #Traverse through the list until current = None,
-            books.append({"isbn": current.isbn, "title": current.title, "user": current.user, "date": current.date})    #Appends the current node's details to the books list.
-            current = current.next      #Move forward in the list.
-        return books        #Return books list.
+        books = []
+        current = self.head
+        while current:          # Collect all books in a list.
+            books.append({
+                "isbn": current.isbn,
+                "title": current.title,
+                "user": current.user,
+                "date": current.date
+            })
+            current = current.next
+        return books
+
+    def borrow_book_sub(self, book=None, user=None, date=None):
+        current = self.head
+        isbn = book['isbn']
+        while current:
+            if (isbn and current.isbn == isbn):
+                current.user = user     #Assign borrow details
+                current.date = date  
+                break
+            current = current.next
+        return True
+
+    def return_book(self, isbn=None, user=None):
+        current = self.head
+        while current:
+            if current.isbn == isbn and current.user == user:
+                current.user = ''  # Clear user in the node.
+                current.date = ''  # Clear borrow date in the node.
+                break
+                return True
+            current = current.next
+        return False
 
 # ===============================================
 # Stack-based Undo/Redo System (Array-Based) Currently only for Adding and Removing books
 # ===============================================
 class UndoRedoStack:
     def __init__(self, limit=10):
-        self.undo_stack = []        #Initialize empty list that will store actions that can be undone.
-        self.redo_stack = []        #Initialize empty list that will store actions that can be redone.
+        self.undo_stack = []        #Store actions that can be undone.
+        self.redo_stack = []        #Store actions that can be redone.
         self.limit = limit          #Limit of actions that can be stored in both stacks.
 
     def push_undo(self, action):
@@ -455,10 +557,15 @@ class CSVManager:
 
     def load_books(self, book_manager):
         try:        #Attempts to open and read the CSV file
-            with open(self.filename, mode='r') as file:     #Opens CSV file in read mode 'r', and the with statement ensures that the file is closed after reading.
+            with open(self.filename, mode='r') as file:     #Opens CSV file in read mode 'r'. The with statement ensures that the file is closed after reading.
                 reader = csv.DictReader(file)
-                for row in reader:          #Iterates over each row in the CSV file with the corresponding isbn and title.
-                    book_manager.add_book(row['isbn'], row['title'], row['user'], row['date'])
+                for row in reader:          #Iterates over each row in the CSV file with the corresponding details.
+                    book_manager.add_book(
+    row['isbn'], 
+    row['title'], 
+    row.get('user', ''),  # If 'user' is missing, default to an empty string
+    row.get('date', '')   # If 'date' is missing, default to an empty string
+)
             print("\nBooks loaded from CSV.")
         except FileNotFoundError:       #If CSV file is not found, catch a FileNotFoundError.
             print("\nCSV file not found.")
@@ -489,29 +596,22 @@ if __name__ == "__main__":
         if choice == "1":
             book_manager = StaticBookArray()
             break
-        if choice == "2":
+        elif choice == "2":
             book_manager = DynamicBookLinkedList()
             break
-        if choice == "3":
+        elif choice == "3":
             book_manager = BinarySearchTree()
             break
         elif choice == "4":
             book_manager = AVLTree()
             break
         else:
-            print("\nInvalid choice. Please enter 1, 2, 3 or 4.")
-
-    while True:
-        user = input("> Enter your username: ").strip()
-        if user.isalpha():  #Input validation to only accept letters in user
-            break
-        else:
-            print("\nUsername cannot be used. Please enter a different username.")
+            print("\nInvalid choice. Please enter 1, 2, 3, or 4.")
 
     csv_manager = CSVManager()
     undo_redo = UndoRedoStack()
     csv_manager.load_books(book_manager)
-    days_due = 14   #Define no of days before overdue
+    days_due = 14  # Define the number of days before a book is overdue
 
     def prompt_user(message, options):
         while True:
@@ -527,15 +627,17 @@ if __name__ == "__main__":
         print("| 1. Display All Books          |")
         print("| 2. Add Book                   |")
         print("| 3. Search Book                |")
-        print("| 4. Borrow Book                |")        
-        print("| 5. Return Book                |")   
-        print("| 6. Remove Book                |")
-        print("| 7. Save Changes to CSV        |")
-        print("| 8. Undo                       |")
-        print("| 9. Redo                       |")
-        print("| X. Exit                       |")
+        print("| 4. Borrow Book                |")
+        print("| 5. Display Borrow Queue       |")
+        print("| 6. Display Overdue Books      |")        
+        print("| 7. Return Book                |")
+        print("| 8. Remove Book                |")
+        print("| 9. Save Changes to CSV        |")
+        print("| Z. Undo                       |")
+        print("| X. Redo                       |")
+        print("| Q. Quit                       |")
         print("+-------------------------------+")
-        
+
         option = input("> Choose option: ").strip()
 
         if option == "1":
@@ -557,67 +659,97 @@ if __name__ == "__main__":
             search_type = prompt_user("Search by ISBN or Title? (isbn/title): ", ["isbn", "title"])
             value = input(f"Enter {search_type.title()}: ").strip()
             book = book_manager.search_book(isbn=value if search_type == "isbn" else None, title=value if search_type == "title" else None)
-            print(f"\nBook found: {book}" if book else "\nBook not found.")
+            print(f"\nBook found: {book['title']} (ISBN: {book['isbn']})" if book else "\nBook not found.")
 
         elif option == "4":
+            user = input("> Enter your username: ").strip()
             search_type = prompt_user("Borrow a book. Search by ISBN or Title? (isbn/title): ", ["isbn", "title"])
             value = input(f"Enter {search_type.title()}: ").strip()
             book = book_manager.search_book(isbn=value if search_type == "isbn" else None, title=value if search_type == "title" else None)
             borrowed_books = book_manager.get_borrowed_books()
             if book:
                 if book not in borrowed_books:
+                    today = datetime.today()
+                    today_str = today.strftime('%Y-%m-%d')
                     while True:
-                        choice = input(f"\nConfirm to borrow {book}? Y/N:").strip().lower()
+                        choice = input(f"\nConfirm to borrow '{book['title']}'? Y/N: ").strip().lower()
                         if choice == "y":
-                            today = datetime.today()
-                            today_str = today.strftime('%Y-%m-%d')
                             try:
-                                borrow_book = book_manager.borrow_book(isbn=value if search_type == "isbn" else None, title=value if search_type == "title" else None,user=user,date=today_str)
-                                print(f"\nYou have borrowed {book}. Please make sure to return it in {days_due} days.")
-                            except:
-                                print("Error borrowing book")   #TODO: Implement borrow_book in other data struct
+                                book_manager.borrow_book(isbn=value if search_type == "isbn" else None,
+                                                         title=value if search_type == "title" else None,
+                                                         user=user, date=today_str)
+                                print(f"\nYou have borrowed '{book['title']}'. Please make sure to return it in {days_due} days.")
+                            except Exception as e:
+                                if type(e).__name__ == 'AttributeError':
+                                    print(f"Error in the borrow function (Implementation either has errors or does not exist for this data structure.)")
+                                else:
+                                    print(f"Error borrowing book: {str(e)}")                           
                             finally:
                                 break
-                        if choice == "n":
-                            print("\nBorrow cancelled.")
+                        elif choice == "n":
+                            print("\nBorrow canceled.")
                             break
                         else:
                             print("Invalid choice. Please enter Y/N.")
                 else:
                     while True:
-                        choice = input(f"\n{book} is borrowed by another user. Would you like to reserve? Y/N:").strip().lower()
+                        choice = input(f"\n'{book['title']}' is borrowed by another user. Would you like to reserve? Y/N: ").strip().lower()
                         if choice == "y":
-                            #TODO: Reserve function
-                            print(f"\nYou have reserved {book}.") 
-                            break
-                        if choice == "n":
-                            print("\nReserve cancelled.")
+                            try:
+                                book_manager.borrow_book(isbn=value if search_type == "isbn" else None,
+                                                         title=value if search_type == "title" else None,
+                                                         user=user, date=today_str)
+                                print(f"\nYou have reserved '{book['title']}'.")
+                            except Exception as e:
+                                if type(e).__name__ == 'AttributeError':
+                                    print(f"Error in the reserve (borrow) function. Implementation either has errors or does not exist for this data structure.")
+                                else:
+                                    print(f"Error reserving book: {str(e)}")
+                            finally:
+                                break
+                        elif choice == "n":
+                            print("\nReserve canceled.")
                             break
                         else:
                             print("Invalid choice. Please enter Y/N.")
-            else: 
+            else:
                 print("\nBook not found.")
 
-        elif option == "5":
-            print("-------------------------------------------------------------------")
-            print("ISBN            |       Title\t\t|\tDate Borrowed")
-            print("-------------------------------------------------------------------")
+        elif option == '5':
+            try:
+                book_manager.display_borrow_queue()
+            except Exception as e:
+                if type(e).__name__ == 'AttributeError':
+                    print(f"Error: The borrow queue is not implemented for this data structure.")
+                else:
+                    print(f"Error displaying the queue: {str(e)}")
+
+        elif option == "6":
+            print(book_manager.display_max_heap_overdue_books(days_due)) 
+
+        elif option == "7":
+            user = input("> Enter your username: ").strip()
             book_manager.display_user_borrowed_books(user)
-            print("-------------------------------------------------------------------")
             user_borrowed_books = book_manager.get_user_borrowed_books(user)
-            if user_borrowed_books:            
+            if user_borrowed_books:
                 value = input(f"Enter ISBN of the book to return: ").strip()
                 book = book_manager.search_book(isbn=value, title=None)
                 if book and book in user_borrowed_books:
                     try:
-                        return_book = book_manager.return_book(value)
-                        print(f"\nYou have returned {book}.") 
-                    except:
-                        print(f"\nError returning book")    #TODO: Implement return_book in other data struct
-                else:
-                    print(f"\nNo book was returned.") 
+                        returned = book_manager.return_book(value, user)  # Pass user to return_book
+                        if returned:
+                            print(f"\nYou have returned {book['title']}.")
+                        else:
+                            print(f"\nError: Could not return the book. Please ensure the book was borrowed by you.")
+                    except Exception as e:
+                        if type(e).__name__ == 'AttributeError':
+                            print(f"\nError: The return book function is not implemented or has errors for this data structure.")
+                        else:
+                            print(f"Error returning the book: {str(e)}")
+            else:
+                print("\nYou haven't borrowed any books.")
 
-        elif option == "6":
+        elif option == "8":
             remove_type = prompt_user("Remove by ISBN or Title? (isbn/title): ", ["isbn", "title"])
             value = input(f"Enter {remove_type.title()}: ").strip()
             book = book_manager.search_book(isbn=value if remove_type == "isbn" else None, title=value if remove_type == "title" else None)
@@ -627,22 +759,21 @@ if __name__ == "__main__":
             else:
                 print("\nBook not found.")
 
-        elif option == "7":
+        elif option == "9":
             csv_manager.save_books(book_manager)
 
-        elif option == "8":
+        elif option.lower() == "z":
             undo_redo.undo(book_manager)
 
-        elif option == "9":
+        elif option.lower() == "x":
             undo_redo.redo(book_manager)
 
-        #elif option == "d":
-        #    print(undo_redo.redo_stack)
-        #    print(undo_redo.undo_stack)
-
-        elif option.lower() == "x":
+        elif option.lower() == "q":
             print("Exiting...")
             break
 
+        elif option.lower() == "g":     #hidden function, to show max-heap structure of overdue books.
+            print(book_manager.get_max_heap_overdue_books(days_due)) 
+            
         else:
-            print("\nInvalid option. Please choose a number from 1 to X.")
+            print("\nInvalid option. Please choose a valid option from the menu.")
