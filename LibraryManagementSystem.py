@@ -95,9 +95,9 @@ class BookManagerBase:
             else:
                 self.borrow_queue[title] = [{"user": user, "date": date}]
                 if self.borrow_book_sub(book, user, date):   #Check if method exists
-                    print(f"Book '{title}' borrowed by {user} on {date}.")                    
+                    print(f"\nBook '{title}' borrowed by {user} on {date}.")                    
                 else:
-                    print(f"Error borrowing the book (The borrow function is not implemented for this data structure.)")
+                    print(f"\nError borrowing the book (The borrow function is not implemented for this data structure.)")
         else:
             print(f"Book '{title}' not found.")
 
@@ -106,7 +106,7 @@ class BookManagerBase:
 
     def display_borrow_queue(self):
         if not self.borrow_queue:
-            print("No books are currently borrowed.")
+            print("\nNo books are currently borrowed.")
         else:
             print("Borrow Queue:")
             for title, users in self.borrow_queue.items():
@@ -144,22 +144,39 @@ class StaticBookArray(BookManagerBase):
 
     def borrow_book_sub(self, book=None, user=None, date=None):
         borrowed_book = book
-        borrowed_book['user'] = user            # Assign borrow details
-        borrowed_book['date'] = date
-        index = self.books.index(book)
-        self.books[index] = borrowed_book       # Update the book details in the list
-        return True
+        
+        if borrowed_book['user'] == '':  # Check if the book is available
+            borrowed_book['user'] = user            # Assign borrow details
+            borrowed_book['date'] = date
+            index = self.books.index(book)
+            self.books[index] = borrowed_book       # Update the book details in the list
+            return True
+        else:
+            # Book is already borrowed, add to the reservation queue
+            if borrowed_book['title'] in self.borrow_queue:
+                self.borrow_queue[borrowed_book['title']].append({"user": user, "date": date})
+            else:
+                self.borrow_queue[borrowed_book['title']] = [{"user": user, "date": date}]
+            print(f"Book '{borrowed_book['title']}' is currently borrowed. {user}, you have been added to the waiting queue.")
+            return False
 
     def return_book(self, isbn=None, user=None):
-        borrowed_book = self.search_book(isbn, None)                # Find the book using its ISBN
-        if borrowed_book and borrowed_book.get('user') == user:     # Ensure the book is actually borrowed by the user
-            borrowed_book['user'] = ''          # Clear the user field
-            borrowed_book['date'] = ''          # Clear the date field
-            books = self.get_books()            
-            index = books.index(borrowed_book)      # Find the index of the borrowed book
-            self.books[index] = borrowed_book       # Update the book in the self.books list
+        borrowed_book = self.search_book(isbn, None)  # Find the book by ISBN
+        if borrowed_book and borrowed_book['user'] == user:  # Check if the user is correct
+            borrowed_book['user'] = ''  # Clear the user field
+            borrowed_book['date'] = ''  # Clear the date field
+            index = self.books.index(borrowed_book)  # Find the index of the book
+            self.books[index] = borrowed_book  # Update the book in the array
+
+            # Check the reservation queue for the book
+            if borrowed_book['title'] in self.borrow_queue and len(self.borrow_queue[borrowed_book['title']]) > 0:
+                next_user = self.borrow_queue[borrowed_book['title']].pop(0)
+                print(f"Book '{borrowed_book['title']}' is now available for {next_user['user']}.")
+                borrowed_book['user'] = next_user['user']
+                borrowed_book['date'] = next_user['date']
+                self.books[index] = borrowed_book  # Update the book details again
             return True
-        return False
+        return False  # Book not found or not borrowed by the given user
 
 # ===============================================
 # Dynamic Data Structure: Linked List
@@ -217,22 +234,37 @@ class DynamicBookLinkedList(BookManagerBase):   # Manages the books as a linked 
         isbn = book['isbn']
         while current:
             if (isbn and current.isbn == isbn):
-                current.user = user     #Assign borrow details
-                current.date = date  
-                break
+                if current.user == '':  # Check if the book is available
+                    current.user = user     # Assign borrow details
+                    current.date = date  
+                    print(f"\nBook '{current.title}' borrowed by {user} on {date}.")
+                    return True
+                else:
+                    # Book is already borrowed, add to the reservation queue
+                    if current.title in self.borrow_queue:
+                        self.borrow_queue[current.title].append({"user": user, "date": date})
+                    else:
+                        self.borrow_queue[current.title] = [{"user": user, "date": date}]
+                    print(f"\nBook '{current.title}' is currently borrowed. {user}, you have been added to the waiting queue.")
+                    return False
             current = current.next
-        return True
+        return False  # Book not found
 
     def return_book(self, isbn=None, user=None):
         current = self.head
         while current:
             if current.isbn == isbn and current.user == user:
-                current.user = ''  # Clear user in the node.
-                current.date = ''  # Clear borrow date in the node.
-                break
-                return True
+                current.user = ''  # Clear user in the node
+                current.date = ''  # Clear borrow date in the node
+                # Check if there are any users in the reservation queue
+                if current.title in self.borrow_queue and len(self.borrow_queue[current.title]) > 0:
+                    next_user = self.borrow_queue[current.title].pop(0)
+                    print(f"Book '{current.title}' is now available for {next_user['user']}.")
+                    current.user = next_user['user']  # Assign the book to the next user in the queue
+                    current.date = next_user['date']
+                return True  # Successfully returned the book
             current = current.next
-        return False
+        return False  # Book not found or not borrowed by the given user
 
 # ===============================================
 # Stack-based Undo/Redo System (Array-Based) Currently only for Adding and Removing books
@@ -274,7 +306,7 @@ class UndoRedoStack:
             return
         action = self.redo_stack.pop()
         if action['type'] == 'add':
-            book_manager.add_book(action['isbn'], action['title'], action.get['user'], action.get['date'])
+            book_manager.add_book(action['isbn'], action['title'], user, date)
             self.push_undo(action)
             print(f"\nRedo: Re-added book {action['isbn']}")
         elif action['type'] == 'remove':
@@ -297,6 +329,7 @@ class BSTNode:
 class BinarySearchTree(BookManagerBase):
     def __init__(self):
         self.root = None
+        self.borrow_queue = {}
 
     def add_book(self, isbn, title, user, date):
         self.root = self._add_recursive(self.root, isbn, title, user, date)
@@ -363,6 +396,50 @@ class BinarySearchTree(BookManagerBase):
             books.append({"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date})
             self._inorder_traversal(node.right, books)
 
+    def borrow_book_sub(self, book=None, user=None, date=None):
+        def _borrow_node(node, isbn):
+            if not node:
+                return None
+            if isbn == node.isbn:
+                if node.user == '':
+                    node.user = user
+                    node.date = date
+                    return True
+                else:
+                    if node.title in self.borrow_queue:
+                        self.borrow_queue[node.title].append({"user": user, "date": date})
+                    else:
+                        self.borrow_queue[node.title] = [{"user": user, "date": date}]
+                    print(f"\nBook '{node.title}' is currently borrowed. {user}, you have been added to the waiting queue.")
+                    return False
+            elif isbn < node.isbn:
+                return _borrow_node(node.left, isbn)
+            else:
+                return _borrow_node(node.right, isbn)
+
+        return _borrow_node(self.root, book['isbn'])
+
+    def return_book(self, isbn=None, user=None):
+        def _return_node(node, isbn):
+            if not node:
+                return False
+            if isbn == node.isbn and node.user == user:
+                node.user = ''
+                node.date = ''
+                # If there are users waiting in the queue, notify the next user
+                if node.title in self.borrow_queue and len(self.borrow_queue[node.title]) > 0:
+                    next_user = self.borrow_queue[node.title].pop(0)
+                    print(f"\nBook '{node.title}' is now available for {next_user['user']}.")
+                    node.user = next_user['user']
+                    node.date = next_user['date']
+                return True
+            elif isbn < node.isbn:
+                return _return_node(node.left, isbn)
+            else:
+                return _return_node(node.right, isbn)
+
+        return _return_node(self.root, isbn)
+
 # ===============================================
 # AVL Tree
 # =============================================== 
@@ -379,6 +456,7 @@ class AVLNode:
 class AVLTree(BookManagerBase):
     def __init__(self):
         self.root = None
+        self.borrow_queue = {}
 
     # Utility function to get the height of the node
     def _get_height(self, node):
@@ -507,6 +585,50 @@ class AVLTree(BookManagerBase):
             books.append({"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date})
             self._inorder_traversal(node.right, books)
 
+    def borrow_book_sub(self, book=None, user=None, date=None):
+        def _borrow_node(node, isbn):
+            if not node:
+                return None
+            if isbn == node.isbn:
+                if node.user == '':
+                    node.user = user
+                    node.date = date
+                    return True
+                else:
+                    if node.title in self.borrow_queue:
+                        self.borrow_queue[node.title].append({"user": user, "date": date})
+                    else:
+                        self.borrow_queue[node.title] = [{"user": user, "date": date}]
+                    print(f"Book '{node.title}' is currently borrowed. {user}, you have been added to the waiting queue.")
+                    return False
+            elif isbn < node.isbn:
+                return _borrow_node(node.left, isbn)
+            else:
+                return _borrow_node(node.right, isbn)
+
+        return _borrow_node(self.root, book['isbn'])
+
+    def return_book(self, isbn=None, user=None):
+        def _return_node(node, isbn):
+            if not node:
+                return False
+            if isbn == node.isbn and node.user == user:
+                node.user = ''
+                node.date = ''
+                # Notify the next user in the queue if any
+                if node.title in self.borrow_queue and len(self.borrow_queue[node.title]) > 0:
+                    next_user = self.borrow_queue[node.title].pop(0)
+                    print(f"Book '{node.title}' is now available for {next_user['user']}.")
+                    node.user = next_user['user']
+                    node.date = next_user['date']
+                return True
+            elif isbn < node.isbn:
+                return _return_node(node.left, isbn)
+            else:
+                return _return_node(node.right, isbn)
+
+        return _return_node(self.root, isbn)
+    
 # ===============================================
 # CSV Manager (For Reading and Writing into CSV File)
 # ===============================================
@@ -581,6 +703,14 @@ if __name__ == "__main__":
 
     while True:
         print("\n+-------------------------------+")
+        if choice == "1":
+            print("|         STATIC ARRAY          |")
+        elif choice == "2":
+            print("|      DYNAMIC LINKED LIST      |")
+        elif choice == "3":
+            print("|   BINARY SEARCH TREE (BST)    |")
+        elif choice == "4":
+            print("|           AVL TREE            |")
         print("|           MAIN MENU           |")
         print("+-------------------------------+")
         print("| 1. Display All Books          |")
@@ -610,8 +740,8 @@ if __name__ == "__main__":
         elif option == "2":
             isbn = input("\nEnter ISBN: ").strip()
             title = input("Enter Title: ").strip()
-            user = input("Enter User (Enter if none): ").strip()
-            date = input("Enter Date (YYYY-MM-DD)(Enter if none): ").strip()
+            user = ""
+            date = ""
             book_manager.add_book(isbn, title, user, date)
             undo_redo.push_undo({"type": "add", "isbn": isbn, "title": title, "user": user, "date": date})
             print("\nBook added successfully.")
@@ -638,55 +768,45 @@ if __name__ == "__main__":
 
         elif option == "4":
             user = input("> Enter your username: ").strip()
-            search_type = prompt_user("Borrow a book. Search by ISBN or Title? (isbn/title): ", ["isbn", "title"])
-            value = input(f"Enter {search_type.title()}: ").strip()
+
+            # Check if the current book manager is BST or AVL, and restrict to ISBN search
+            if isinstance(book_manager, BinarySearchTree) or isinstance(book_manager, AVLTree):
+                search_type = "isbn"  # Force search by ISBN for BST and AVL
+                value = input("Enter ISBN: ").strip()
+            else:
+                # For Static Array and Linked List, allow search by either ISBN or Title
+                search_type = prompt_user("Borrow a book. Search by ISBN or Title? (isbn/title): ", ["isbn", "title"])
+                value = input(f"Enter {search_type.title()}: ").strip()
+
+            # Proceed with the borrowing process
             book = book_manager.search_book(isbn=value if search_type == "isbn" else None, title=value if search_type == "title" else None)
             borrowed_books = book_manager.get_borrowed_books()
-            if book:
-                if book not in borrowed_books:
-                    today = datetime.today()
-                    today_str = today.strftime('%Y-%m-%d')
-                    while True:
-                        choice = input(f"\nConfirm to borrow '{book['title']}'? Y/N: ").strip().lower()
-                        if choice == "y":
-                            try:
-                                book_manager.borrow_book(isbn=value if search_type == "isbn" else None,
-                                                         title=value if search_type == "title" else None,
-                                                         user=user, date=today_str)
-                                print(f"\nYou have borrowed '{book['title']}'. Please make sure to return it in {days_due} days.")
-                            except Exception as e:
-                                if type(e).__name__ == 'AttributeError':
-                                    print(f"Error in the borrow function (Implementation either has errors or does not exist for this data structure.)")
-                                else:
-                                    print(f"Error borrowing book: {str(e)}")                           
-                            finally:
-                                break
-                        elif choice == "n":
-                            print("\nBorrow canceled.")
-                            break
-                        else:
-                            print("Invalid choice. Please enter Y/N.")
+
+            if book:  # If the book is found
+                # --------------- Add This Block to Check for Overdue ---------------
+                overdue_books = book_manager.get_max_heap_overdue_books(days_due)
+                overdue_isbns = [book[1][0][0][1] for book in overdue_books]  # Extract ISBNs from overdue books
+
+                if book['isbn'] in overdue_isbns:
+                    print(f"\nCannot reserve '{book['title']}' as it is overdue. It will be prioritized.")
                 else:
+                    today = datetime.today()  # Assign today's date
+                    today_str = today.strftime('%Y-%m-%d')  # Format date to string
+                    
                     while True:
-                        choice = input(f"\n'{book['title']}' is borrowed by another user. Would you like to reserve? Y/N: ").strip().lower()
+                        choice = input(f"\nConfirm to reserve '{book['title']}'? Y/N: ").strip().lower()
                         if choice == "y":
-                            try:
-                                book_manager.borrow_book(isbn=value if search_type == "isbn" else None,
-                                                         title=value if search_type == "title" else None,
-                                                         user=user, date=today_str)
-                                print(f"\nYou have reserved '{book['title']}'.")
-                            except Exception as e:
-                                if type(e).__name__ == 'AttributeError':
-                                    print(f"Error in the reserve (borrow) function. Implementation either has errors or does not exist for this data structure.")
-                                else:
-                                    print(f"Error reserving book: {str(e)}")
-                            finally:
-                                break
+                            book_manager.borrow_book(isbn=value if search_type == "isbn" else None,
+                                                    title=value if search_type == "title" else None,
+                                                    user=user, date=today_str)
+                            print(f"\nYou have reserved '{book['title']}'.")
+                            break
                         elif choice == "n":
                             print("\nReserve canceled.")
                             break
                         else:
                             print("Invalid choice. Please enter Y/N.")
+
             else:
                 print("\nBook not found.")
 
