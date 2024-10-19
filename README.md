@@ -73,20 +73,23 @@ Technologies Used:
 ---
 
 Setup Instructions:
-
+```
 1.  Clone the Repository:
 
         git clone https://github.com/hazimdanishhh/Library-Management-System.git
 
 2.  Install Python: Ensure Python is installed on your machine. This project is compatible with Python 3.x.
 
-3.  Run the Program:
+3.  Install requirements module : pip install -r requirements.txt
+
+4.  Run the Program:
 
     - Open a terminal/command prompt.
     - Navigate to the directory containing the program file.
     - Run the following command:
 
       python LibraryManagementSystem.py
+```
 
 ---
 
