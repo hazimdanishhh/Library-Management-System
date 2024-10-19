@@ -1,45 +1,74 @@
-## README: Library Management System with Stack-Based Undo/Redo
+## README: Library Management System
 
 Project Title:
-Library Management System (with Stack-Based Undo/Redo)
+Library Management System - Assignment 1: ITWB2043 Algorithms & Data Structures
 
 ---
 
 Overview:
-This project is a scalable Library Management System designed to manage books using both static (array-based) and dynamic (linked-list-based) data structures. It also includes a stack-based Undo/Redo system for managing the addition and removal of books. The system can load and save book records from a CSV file, making it persistent between sessions.
+This project is a scalable Library Management System designed to efficiently handle key operations such as book addition, borrowing, and management of users and overdue books. The system employs different data structures for managing book inventories, reservations, and borrowing history, ensuring scalability and efficiency.
+
+The system supports:
+
+- Static and Dynamic data structures.
+- Stack-based Undo/Redo system for book management.
+- Binary Search Tree (BST) and AVL Tree for optimized book searches based on ISBN.
+- Queue-based book reservations and heap-based priority for overdue books.
 
 ---
 
 Key Features:
 
-1. Static and Dynamic Data Structures:
+1. Static and Dynamic Data Structures for Book Management:
 
-   - Users can choose between a static array and a dynamic linked list for managing book records.
-   - The static array has a fixed capacity, while the linked list allows flexible additions and removals.
+   - Static Array (Capacity Limited): Fixed-capacity array-based system for storing books.
+   - Dynamic Linked List: Flexible, dynamic system that allows additions and removals of books.
 
-2. Book Management:
+   Operations:
 
-   - Add Book: Add a new book by entering its ISBN and title.
-   - Search Book: Search for a book by its ISBN or title.
-   - Remove Book: Remove a book from the system by ISBN or title.
-   - Display Books: View all books currently stored in the system.
+   - Add Book: Add a new book by ISBN and title.
+   - Search Book: Search for books by ISBN or title.
+   - Remove Book: Remove books by ISBN or title.
+   - Display Books: View all available books.
 
-3. Undo/Redo System:
+2. Stack-Based Undo/Redo System:
 
-   - Undo: Undo the last add or remove action, using an array-based stack to store up to 10 actions.
-   - Redo: Redo the last undone action, moving actions between the undo and redo stacks.
+   - Undo: Reverse the last action (add/remove).
+   - Redo: Reapply the last undone action.
+   - Uses a stack (array-based) to store up to the last 10 actions.
 
-4. CSV File Integration:
-   - Save to CSV: Save the current list of books to a books.csv file.
-   - Load from CSV: Load books from the books.csv file into the system at startup.
+3. Queue-Based Reservation System:
+
+   - Users can reserve books when they are already borrowed.
+   - Reservations are managed in a first-come, first-served queue.
+
+4. Binary Search Tree (BST) for ISBN-Based Book Management:
+
+   - Books are organized and searchable by ISBN using a binary search tree.
+   - Supports efficient insertion, deletion, and searching by ISBN only.
+
+5. AVL Tree for Optimized ISBN-Based Book Search:
+
+   - Self-balancing AVL Tree ensures optimized searches for large inventories.
+   - Supports searching, insertion, and deletion based only on ISBN.
+
+6. Heap-Based Priority for Overdue Books:
+
+   - Overdue books are managed using a max-heap.
+   - Prioritizes books that are overdue by the most days for return notifications.
+
+7. CSV File Integration:
+
+   - Save to CSV: Save the current list of books in books.csv.
+   - Load from CSV: Load books from the books.csv file on startup.
 
 ---
 
 Technologies Used:
 
 - Programming Language: Python
-- Data Structures: Array, Linked List, Stack (Array-based)
-- File Handling: CSV for persistent book storage
+- Data Structures: Array, Linked List, Stack (Array-based), Queue, Binary Search Tree, AVL Tree, Heap
+- File Handling: CSV for book database
 
 ---
 
@@ -47,7 +76,7 @@ Setup Instructions:
 
 1.  Clone the Repository:
 
-        git clone <repository_url>
+        git clone https://github.com/hazimdanishhh/Library-Management-System.git
 
 2.  Install Python: Ensure Python is installed on your machine. This project is compatible with Python 3.x.
 
@@ -61,26 +90,27 @@ Setup Instructions:
 
 ---
 
-User Instructions:
+Program Usage:
 
-1. Choosing a Data Structure:
+Main Menu Options:
 
-   - When the program starts, you will be prompted to choose between a static array and a dynamic linked list for managing books. Enter 1 for the array or 2 for the linked list.
+- Display All Books: View all books available in the system.
+- Add Book: Add a new book by entering its ISBN, title, user (if borrowed), and date.
+- Search Book:
+  - Static Array/Dynamic Linked List: Search by ISBN or title.
+  - Binary Search Tree (BST) and AVL Tree: Search only by ISBN.
+- Borrow Book: Borrow a book by ISBN or title (only if not borrowed).
+- Return Book: Return a borrowed book by entering ISBN and user.
+- Display Borrow Queue: View the reservation queue for books.
+- Display Overdue Books: Display overdue books with priority.
+- Undo/Redo: Undo or redo the last action.
+- Save Changes: Save the current books to a CSV file.
+- Quit: Exit the program.
 
-2. Main Menu Options:
+Search Behavior:
 
-   - Add Book: Enter 1 to add a new book by ISBN and title.
-   - Search Book: Enter 2 to search for a book by ISBN or title.
-   - Remove Book: Enter 3 to remove a book by ISBN or title.
-   - Display Books: Enter 4 to view all books in the system.
-   - Save to CSV: Enter 5 to save the current list of books to a CSV file.
-   - Load from CSV: Enter 6 to load books from an existing CSV file.
-   - Undo: Enter 7 to undo the last add/remove action.
-   - Redo: Enter 8 to redo the last undone action.
-   - Exit: Enter 9 to exit the program.
-
-3. Undo/Redo Behavior:
-   - The system stores up to the last 10 actions for undo/redo functionality. When an action is undone, it moves to the redo stack and can be re-applied.
+- Static Array and Dynamic Linked List: Search by both ISBN and title.
+- BST and AVL Tree: Search only by ISBN (as per tree structure optimization).
 
 ---
 
@@ -88,9 +118,9 @@ CSV File Format:
 
 - The program reads and writes book data in CSV format with the following structure:
 
-        isbn,title
-        123456789,The Great Gatsby
-        987654321,To Kill a Mockingbird
+        isbn,title,user,date
+        123456789,The Great Gatsby,James,2024-09-25
+        987654321,To Kill a Mockingbird,,    #No user or date if not borrowed
 
 - Make sure that the CSV file adheres to this format for the program to correctly load and save book data.
 
@@ -98,26 +128,121 @@ CSV File Format:
 
 Example Usage:
 
-1. Add a Book:
+1. Static Array (Array-Based Book Management)
 
-   - Select "Add Book" from the menu and input an ISBN and title, e.g., ISBN: 123456789, Title: Harry Potter.
+   - Add a Book:
 
-2. Undo Last Action:
+     Select Static Array from the menu (Option 1).
+     Choose Add Book from the main menu (Option 2).
+     Enter ISBN: 111111111
+     Enter Title: Data Structures in Python
+     Enter User (optional, if borrowed): (Leave blank)
+     Enter Date (optional, if borrowed): (Leave blank)
+     Result: The book is added to the static array-based inventory.
 
-   - After adding the book, you can undo the action by selecting "Undo" from the menu. The system will remove the last added book.
+   - Search by ISBN/Title:
 
-3. Redo Last Action:
+     Choose Search Book from the main menu (Option 3).
+     Select Search by Title.
+     Enter the title: Data Structures in Python.
+     Result: The book details are displayed.
 
-   - If you undo the addition of a book, you can redo it by selecting "Redo," and the book will be added back.
+   - Remove a Book:
 
-4. Save to CSV:
-   - After managing books, you can save the current list of books by choosing the "Save to CSV" option. The data will be stored in books.csv.
+     Choose Remove Book (Option 8).
+     Search by ISBN or title and remove the book.
+
+   - Undo/Redo:
+
+     After adding/removing a book, you can undo the action (Option Z) or redo it (Option X).
+
+2. Dynamic Linked List (Linked List-Based Book Management)
+
+   - Add a Book:
+
+     Select Dynamic Linked List from the menu (Option 2).
+     Choose Add Book from the main menu (Option 2).
+     Enter ISBN: 222222222
+     Enter Title: Introduction to Algorithms
+     Enter User (optional, if borrowed): (Leave blank)
+     Enter Date (optional, if borrowed): (Leave blank)
+     Result: The book is dynamically added to the linked list.
+
+   - Search by ISBN/Title:
+
+     Choose Search Book from the main menu (Option 3).
+     Select Search by ISBN or Search by Title.
+     Enter the search criteria, e.g., ISBN: 222222222.
+     Result: The book is found and displayed.
+
+   - Remove a Book:
+
+     Choose Remove Book from the main menu (Option 8).
+     Remove the book using either its ISBN or title.
+
+   - Undo/Redo:
+
+     After adding/removing a book, use Undo (Option Z) or Redo (Option X) to reverse/restore the action.
+
+3. Binary Search Tree (BST - ISBN-Based Management Only)
+
+   - Add a Book:
+
+     Select Binary Search Tree (BST) from the menu (Option 3).
+     Choose Add Book (Option 2).
+     Enter ISBN: 333333333
+     Enter Title: The Art of Computer Programming
+     Enter User (optional, if borrowed): (Leave blank)
+     Enter Date (optional, if borrowed): (Leave blank)
+     Result: The book is added to the BST using its ISBN as the key.
+
+   - Search by ISBN:
+
+     Choose Search Book from the main menu (Option 3).
+     Enter ISBN: 333333333.
+     Result: The book is found using the ISBN search.
+
+   - Remove a Book by ISBN:
+
+     Choose Remove Book from the main menu (Option 8).
+     Enter ISBN: 333333333.
+     Result: The book is removed from the BST.
+
+   - Undo/Redo:
+
+     Use Undo (Option Z) to reverse the last action or Redo (Option X) to restore it.
+
+4. AVL Tree (Self-Balancing Tree for ISBN Search)
+
+   - Add a Book:
+
+     Select AVL Tree from the menu (Option 4).
+     Choose Add Book (Option 2).
+     Enter ISBN: 444444444
+     Enter Title: Clean Code
+     Enter User (optional, if borrowed): (Leave blank)
+     Enter Date (optional, if borrowed): (Leave blank)
+     Result: The book is added to the AVL Tree, and the tree is balanced after insertion.
+
+   - Search by ISBN:
+
+     Choose Search Book from the main menu (Option 3).
+     Enter ISBN: 444444444.
+     Result: The book is found using the ISBN.
+
+   - Remove a Book by ISBN:
+
+     Choose Remove Book from the main menu (Option 8).
+     Enter ISBN: 444444444.
+     Result: The book is removed from the AVL Tree, and the tree is rebalanced after removal.
+
+   - Undo/Redo:
+
+     After adding/removing a book, you can Undo (Option Z) or Redo (Option X) the last action.
 
 ---
 
 Future Enhancements:
 This system is designed to be scalable, allowing future additions such as:
 
-- Queue-based Reservation System: Implementing a queue to handle book reservations.
-- Heap-based Priority for Overdue Books: Implementing a heap to prioritize overdue books dynamically.
 - Graphical User Interface (GUI): Adding a user-friendly GUI for easier interaction.

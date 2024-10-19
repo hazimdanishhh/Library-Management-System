@@ -264,7 +264,7 @@ class UndoRedoStack:
             self.push_redo(action)      #Move this action to redo stack.
             print(f"\nUndo: Removed book {action['isbn']}")
         elif action['type'] == 'remove':        #Checks if action is removal of a book.
-            book_manager.add_book(action['isbn'], action['title'])      #Calls add_book method, adds the recently removed book.
+            book_manager.add_book(action['isbn'], action['title'], user, date)      #Calls add_book method, adds the recently removed book.
             self.push_redo(action)      #Move this action to redo stack.
             print(f"\nUndo: Re-added book {action['isbn']}")
 
@@ -274,7 +274,7 @@ class UndoRedoStack:
             return
         action = self.redo_stack.pop()
         if action['type'] == 'add':
-            book_manager.add_book(action['isbn'], action['title'])
+            book_manager.add_book(action['isbn'], action['title'], action.get['user'], action.get['date'])
             self.push_undo(action)
             print(f"\nRedo: Re-added book {action['isbn']}")
         elif action['type'] == 'remove':
@@ -312,28 +312,26 @@ class BinarySearchTree(BookManagerBase):
             print("\nBook with this ISBN already exists.")
         return node
 
-    def remove_book(self, isbn=None, title=None):
-        self.root, removed_book = self._delete_recursive(self.root, isbn, title)
+    def remove_book(self, isbn=None):
+        self.root, removed_book = self._delete_recursive(self.root, isbn)
         return removed_book
 
-    def _delete_recursive(self, node, isbn=None, title=None):
+    def _delete_recursive(self, node, isbn):
         if not node:
             return node, None
-        if isbn and isbn < node.isbn:
+        if isbn < node.isbn:
             node.left, removed_book = self._delete_recursive(node.left, isbn)
-        elif isbn and isbn > node.isbn:
+        elif isbn > node.isbn:
             node.right, removed_book = self._delete_recursive(node.right, isbn)
-        elif isbn == node.isbn or title.lower() == node.title.lower():
+        else:
             removed_book = {"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date}
-            if not node.left: return node.right, removed_book
-            if not node.right: return node.left, removed_book
+            if not node.left:
+                return node.right, removed_book
+            if not node.right:
+                return node.left, removed_book
             min_node = self._min_value_node(node.right)
             node.isbn, node.title = min_node.isbn, min_node.title
             node.right, _ = self._delete_recursive(node.right, min_node.isbn)
-        elif title and title.lower() < node.title.lower():
-            node.left, removed_book = self._delete_recursive(node.left, isbn, title)
-        else:
-            node.right, removed_book = self._delete_recursive(node.right, isbn, title)
         return node, removed_book
 
     def _min_value_node(self, node):
@@ -341,18 +339,18 @@ class BinarySearchTree(BookManagerBase):
         return node
 
     def search_book(self, isbn=None, title=None):
-        return self._search_recursive(self.root, isbn, title)
+        return self._search_recursive(self.root, isbn)
 
     def _search_recursive(self, node, isbn=None, title=None):
         if not node:
             return None
-        if isbn == node.isbn or (title and title.lower() == node.title.lower()):
+        if isbn == node.isbn:
             return {"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date}
-        if isbn and isbn < node.isbn:
-            return self._search_recursive(node.left, isbn, title)
-        if title and title.lower() < node.title.lower():
-            return self._search_recursive(node.left, isbn, title)
-        return self._search_recursive(node.right, isbn, title)
+        elif isbn < node.isbn:
+            return self._search_recursive(node.left, isbn)
+        else:
+            return self._search_recursive(node.right, isbn)
+
 
     def get_books(self):
         books = []
@@ -364,9 +362,6 @@ class BinarySearchTree(BookManagerBase):
             self._inorder_traversal(node.left, books)
             books.append({"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date})
             self._inorder_traversal(node.right, books)
-
-# FIX AVL TREE
-# PROBLEMS WITH REMOVE BY TITLE AND SEARCH BY TITLE FOR NEWLY ADDED BOOKS
 
 # ===============================================
 # AVL Tree
@@ -458,58 +453,26 @@ class AVLTree(BookManagerBase):
         return node
 
     # Function to remove a book and maintain AVL balance
-    def remove_book(self, isbn=None, title=None):
-        self.root, removed_book = self._delete_recursive(self.root, isbn, title)
+    def remove_book(self, isbn=None):
+        self.root, removed_book = self._delete_recursive(self.root, isbn)
         return removed_book
 
-    def _delete_recursive(self, node, isbn=None, title=None):
+    def _delete_recursive(self, node, isbn):
         if not node:
             return node, None
-
-        # Traverse the tree based on ISBN or title
-        if isbn and isbn < node.isbn:
-            node.left, removed_book = self._delete_recursive(node.left, isbn, title)
-        elif isbn and isbn > node.isbn:
-            node.right, removed_book = self._delete_recursive(node.right, isbn, title)
-        elif (isbn and isbn == node.isbn) or (title and title.lower() == node.title.lower()):
+        if isbn < node.isbn:
+            node.left, removed_book = self._delete_recursive(node.left, isbn)
+        elif isbn > node.isbn:
+            node.right, removed_book = self._delete_recursive(node.right, isbn)
+        else:
             removed_book = {"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date}
-            # Node has at most one child
             if not node.left:
                 return node.right, removed_book
             if not node.right:
                 return node.left, removed_book
-            # Node has two children, find the in-order successor (minimum in the right subtree)
             min_node = self._min_value_node(node.right)
             node.isbn, node.title = min_node.isbn, min_node.title
             node.right, _ = self._delete_recursive(node.right, min_node.isbn)
-
-        elif title and title.lower() < node.title.lower():
-            node.left, removed_book = self._delete_recursive(node.left, isbn, title)
-        else:
-            node.right, removed_book = self._delete_recursive(node.right, isbn, title)
-
-        # Balance the AVL tree after deletion
-        if not node:
-            return node, removed_book
-
-        node.height = 1 + max(self._get_height(node.left), self._get_height(node.right))
-        balance = self._get_balance(node)
-
-        # Left heavy - Right rotation
-        if balance > 1 and self._get_balance(node.left) >= 0:
-            return self._right_rotate(node), removed_book
-        # Left-Right case - Left rotation followed by Right rotation
-        if balance > 1 and self._get_balance(node.left) < 0:
-            node.left = self._left_rotate(node.left)
-            return self._right_rotate(node), removed_book
-        # Right heavy - Left rotation
-        if balance < -1 and self._get_balance(node.right) <= 0:
-            return self._left_rotate(node), removed_book
-        # Right-Left case - Right rotation followed by Left rotation
-        if balance < -1 and self._get_balance(node.right) > 0:
-            node.right = self._right_rotate(node.right)
-            return self._left_rotate(node), removed_book
-
         return node, removed_book
 
     # Helper function to find the node with the smallest value in the right subtree
@@ -520,21 +483,17 @@ class AVLTree(BookManagerBase):
 
     # Function to search for a book in the AVL Tree
     def search_book(self, isbn=None, title=None):
-        return self._search_recursive(self.root, isbn, title)
+        return self._search_recursive(self.root, isbn)
 
     def _search_recursive(self, node, isbn=None, title=None):
         if not node:
             return None
-        # Match ISBN or Title (case-insensitive for title)
-        if (isbn and isbn == node.isbn) or (title and title.lower() == node.title.lower()):
+        if isbn == node.isbn:
             return {"isbn": node.isbn, "title": node.title, "user": node.user, "date": node.date}
-        
-        # Continue traversing the tree based on ISBN or title
-        if isbn and isbn < node.isbn:
-            return self._search_recursive(node.left, isbn, title)
-        if title and title.lower() < node.title.lower():
-            return self._search_recursive(node.left, isbn, title)
-        return self._search_recursive(node.right, isbn, title)
+        elif isbn < node.isbn:
+            return self._search_recursive(node.left, isbn)
+        else:
+            return self._search_recursive(node.right, isbn)
 
     # Inorder traversal to get a sorted list of books
     def get_books(self):
@@ -651,15 +610,31 @@ if __name__ == "__main__":
         elif option == "2":
             isbn = input("\nEnter ISBN: ").strip()
             title = input("Enter Title: ").strip()
-            book_manager.add_book(isbn, title)
-            undo_redo.push_undo({"type": "add", "isbn": isbn, "title": title})
+            user = input("Enter User (Enter if none): ").strip()
+            date = input("Enter Date (YYYY-MM-DD)(Enter if none): ").strip()
+            book_manager.add_book(isbn, title, user, date)
+            undo_redo.push_undo({"type": "add", "isbn": isbn, "title": title, "user": user, "date": date})
             print("\nBook added successfully.")
 
         elif option == "3":
-            search_type = prompt_user("Search by ISBN or Title? (isbn/title): ", ["isbn", "title"])
-            value = input(f"Enter {search_type.title()}: ").strip()
-            book = book_manager.search_book(isbn=value if search_type == "isbn" else None, title=value if search_type == "title" else None)
-            print(f"\nBook found: {book['title']} (ISBN: {book['isbn']})" if book else "\nBook not found.")
+            # For BST or AVL Tree, search only by ISBN
+            if isinstance(book_manager, BinarySearchTree) or isinstance(book_manager, AVLTree):
+                isbn = input("Search by ISBN: ").strip()
+                book = book_manager.search_book(isbn=isbn)
+                if book:
+                    print(f"\nBook found: {book['title']} (ISBN: {book['isbn']})")
+                else:
+                    print("\nBook not found.")
+            
+            # For StaticBookArray or DynamicBookLinkedList, search by ISBN or Title
+            else:
+                search_type = prompt_user("Search by ISBN or Title? (isbn/title): ", ["isbn", "title"])
+                value = input(f"Enter {search_type.title()}: ").strip()
+                book = book_manager.search_book(isbn=value if search_type == "isbn" else None, title=value if search_type == "title" else None)
+                if book:
+                    print(f"\nBook found: {book['title']} (ISBN: {book['isbn']})")
+                else:
+                    print("\nBook not found.")
 
         elif option == "4":
             user = input("> Enter your username: ").strip()
@@ -750,14 +725,25 @@ if __name__ == "__main__":
                 print("\nYou haven't borrowed any books.")
 
         elif option == "8":
-            remove_type = prompt_user("Remove by ISBN or Title? (isbn/title): ", ["isbn", "title"])
-            value = input(f"Enter {remove_type.title()}: ").strip()
-            book = book_manager.search_book(isbn=value if remove_type == "isbn" else None, title=value if remove_type == "title" else None)
-            if book_manager.remove_book(isbn=value if remove_type == "isbn" else None, title=value if remove_type == "title" else None):
-                undo_redo.push_undo({"type": "remove", "isbn": book['isbn'], "title": book['title']})
-                print("\nBook removed.")
-            else:
-                print("\nBook not found.")
+            # If the data structure is Static Array or Dynamic Linked List, allow remove by ISBN or Title
+            if isinstance(book_manager, StaticBookArray) or isinstance(book_manager, DynamicBookLinkedList):
+                remove_type = prompt_user("Remove by ISBN or Title? (isbn/title): ", ["isbn", "title"])
+                value = input(f"Enter {remove_type.title()}: ").strip()
+                book = book_manager.search_book(isbn=value if remove_type == "isbn" else None, title=value if remove_type == "title" else None)
+                if book_manager.remove_book(isbn=value if remove_type == "isbn" else None, title=value if remove_type == "title" else None):
+                    undo_redo.push_undo({"type": "remove", "isbn": book['isbn'], "title": book['title']})
+                    print("\nBook removed.")
+                else:
+                    print("\nBook not found.")
+            # If the data structure is Binary Search Tree or AVL Tree, only allow remove by ISBN
+            elif isinstance(book_manager, BinarySearchTree) or isinstance(book_manager, AVLTree):
+                isbn = input("Enter ISBN to remove: ").strip()
+                book = book_manager.search_book(isbn=isbn)
+                if book_manager.remove_book(isbn=isbn):
+                    undo_redo.push_undo({"type": "remove", "isbn": book['isbn'], "title": book['title']})
+                    print("\nBook removed.")
+                else:
+                    print("\nBook not found.")
 
         elif option == "9":
             csv_manager.save_books(book_manager)
