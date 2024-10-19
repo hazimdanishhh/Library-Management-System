@@ -1,0 +1,3 @@
+hq==0.0.4
+datetime==5.5
+colorama==0.4.6
